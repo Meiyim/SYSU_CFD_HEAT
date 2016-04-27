@@ -41,12 +41,12 @@ public:
 		printf("--------------------------------------------------------------------------------\n\n");
 	}
 	void printStepStatus(int step,int piter ,double time,double dt,double res){
-		printf("%15f\t%10d\t%10d\t%13.5f\t%13.5f\n", time,  step,piter,dt,res);
+		printf("%15f\t%10d\t%10d\t%13.5f\t%13.5f\n",time,step,piter,dt,res);
 	}
 	void printSteadyStatus(int step,double res){
 		printf("%15s\t%10d\t%10s\t%13s\t%15.10f\n","---",step,"---","---",res);
 	}
-	void printSectionHead(double timeElapse){;
+	void printSectionHead(){
 		printf("%15s\t%10s\t%10s\t%13s\t%15s\n","TIME","CAL STEPE","ITER","DELT","MAX RES");
 	}
 	void printEnding(){

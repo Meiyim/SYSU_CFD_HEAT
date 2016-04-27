@@ -4,9 +4,10 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include "PreProcessor.h"
 #include "navier.h"
 
-void HeadConductionSolver::ReadParamFile( )
+void PreProcessor::ReadParamFile(NavierStokesSolver* ns)
 {
 	int i,j, ikey;
 	ifstream fin;
@@ -16,7 +17,7 @@ void HeadConductionSolver::ReadParamFile( )
 	for( i=0; i<20; i++ )
 		keyw[i] = new char[30];
 
-	fin.open("param.in");
+	fin.open(GridFileName);
 	if( ! fin.is_open( ) ){
 		cout<<"param file does not exist!"<<endl;
 		exit(0);
@@ -62,125 +63,181 @@ void HeadConductionSolver::ReadParamFile( )
 		}
 		else if( strcmp(keyw[0],"steady")==0 )
 		{
-			IfSteady = true;
-			MaxStep  = atoi(keyw[1]);
-			ResidualSteady= atof(keyw[2]);
+			ns->IfSteady = true;
+			ns->MaxStep  = atoi(keyw[1]);
+			ns->ResidualSteady= atof(keyw[2]);
 		}
 		else if( strcmp(keyw[0],"transient")==0 )
 		{
-			IfSteady = false;
-			dt = atof(keyw[1]);
-			total_time= atof(keyw[2]);
+			ns->IfSteady = false;
+			ns->dt = atof(keyw[1]);
+			ns->total_time= atof(keyw[2]);
 			if(      strcmp(keyw[3],"Euler")==0 )
-				TimeScheme = 1;
+				ns->TimeScheme = 1;
 			else if( strcmp(keyw[3],"Dual")==0 )
-				TimeScheme = 2;
+				ns->TimeScheme = 2;
 			else
 			{
-				cout<<"no such unsteady time scheme!:"<<keyw[3]<<endl;
-				exit(0);
+				errorHandler->fatalRuntimeError("no such unsteady time scheme!");
 			}
-			if( ikey>=4 ) MaxOuterStep = atoi(keyw[4]);
+			if( ikey>=4 ) ns->MaxOuterStep = atoi(keyw[4]);
 		}
-
+		else if( strcmp(keyw[0],"energy")==0 )
+		{
+			if(      strcmp(keyw[1],"on")==0 )
+				ns->SolveEnergy= true;
+			else if( strcmp(keyw[1],"off")==0 )
+				ns->SolveEnergy= false;
+			else
+				errorHandler->fatalRuntimeError("energy key word is wrong");
+		}
+		else if( strcmp(keyw[0],"density")==0 )
+		{
+			ns->DensityModel = atoi(keyw[1]);
+		}
+		else if( strcmp(keyw[0],"turbulence")==0 )
+		{
+			if(      strcmp(keyw[1],"no")==0 )
+				ns->TurModel= 0;
+			else if( strcmp(keyw[1],"ke")==0 )
+				ns->TurModel= 1;
+			else
+				errorHandler->fatalRuntimeError("turbulence key word is wrong");
+		}
+		else if( strcmp(keyw[0],"gravity")==0 )
+		{
+			ns->gravity[0] = atof( keyw[1] );
+			ns->gravity[1] = atof( keyw[2] );
+			ns->gravity[2] = atof( keyw[3] );
+		}
+		else if( strcmp(keyw[0],"PressureRef")==0 )
+		{
+			ns->PressureReference = atof(keyw[1]);
+			if(strlen(keyw[2])>0) ns->cellPressureRef   = atoi(keyw[2])-1;
+		}
 
 		//--- numerical scheme
 		else if( strcmp(keyw[0],"relaxation")==0 )
 		{
-			URF = atof( keyw[1] );
+			ns->URF[0] = ns->URF[1] = ns-> URF[2] = atof( keyw[1] );
+			ns->URF[3] = atof( keyw[2] );
+			ns->URF[4] = atof( keyw[3] );
 		}
 		else if( strcmp(keyw[0],"limiter")==0 )
 		{
 			if(      strcmp(keyw[1],"no")==0 )
-				limiter = 0;
+				ns->limiter = 0;
 			else if( strcmp(keyw[1],"Barth" )==0 )
-				limiter = 1;
+				ns->limiter = 1;
 			else if( strcmp(keyw[1],"MLP" )==0 )
-				limiter = 2;
+				ns->limiter = 2;
 			else if( strcmp(keyw[1],"WENO" )==0 )
-				limiter = 3;
+				ns->limiter = 3;
 			else
-				ErrorStop("error in limiter definition");
+				errorHandler->fatalRuntimeError("error in limiter definition");
 		}
 
 		//--- boundary condition
 		else if( strcmp(keyw[0],"bound")==0 )
 		{
 			int bid= atoi( keyw[1] );
-			if(regionMap.find(bid)!=regionMap.end()){
-				cout<<"repeating bid found"<<endl;
+			if(ns->regionMap.find(bid)!=ns->regionMap.end()){
+				errorHandler->fatalRuntimeError("repeating bid found",bid);
 			}
 			if(      strcmp(keyw[2],"Twall")==0 )
 			{
-				regionMap[bid].name="Twall";
-				regionMap[bid].type1 = 1;
-				regionMap[bid].type2 = 0;//given T
-				regionMap[bid].fixedValue = atof(keyw[3]);
+				ns->regionMap[bid].name="Twall";
+				ns->regionMap[bid].type1 = 1;
+				ns->regionMap[bid].type2 = 0;//given T
+				ns->regionMap[bid].fixedValue = atof(keyw[3]);
 			}
 			else if( strcmp(keyw[2],"Hwall")==0 ){
-				regionMap[bid].name="Hwall";
-				regionMap[bid].type1 = 1;
-				regionMap[bid].type2 = 1;//given flux
-				regionMap[bid].fixedValue = atof(keyw[3]);
+				ns->regionMap[bid].name="Hwall";
+				ns->regionMap[bid].type1 = 1;
+				ns->regionMap[bid].type2 = 1;//given flux
+				ns->regionMap[bid].fixedValue = atof(keyw[3]);
 			}
 			else if( strcmp(keyw[2],"sym")==0 ){
-				regionMap[bid].name="sym";
-				regionMap[bid].type1 = 4;
-				regionMap[bid].type2 = 0;
-				regionMap[bid].fixedValue = 0.0;
+				ns->regionMap[bid].name="sym";
+				ns->regionMap[bid].type1 = 4;
+				ns->regionMap[bid].type2 = 0;
+				ns->regionMap[bid].fixedValue = 0.0;
+			}
+			else if( strcmp(keyw[2],"inlet")==0 ){
+				ns->regionMap[bid].name="inlet";
+				ns->regionMap[bid].type1 = 2;
+				ns->regionMap[bid].type2 = 0;
+				double* initvalues = ns->regionMap[bid].initvalues;
+				initvalues[0] = atof(keyw[3]);//u
+				initvalues[1] = atof(keyw[4]);//v
+				initvalues[2] = atof(keyw[5]);//w
+				initvalues[3] = atof(keyw[6]);//p
+				initvalues[4] = atof(keyw[7]);//r
+				initvalues[5] = atof(keyw[8]);//t
+				if( ns->TurModel==1 ){
+					initvalues[6] = atof(keyw[9]);//te
+					initvalues[7] = atof(keyw[10]);//ed
+				}
+			}	
+			else if( strcmp(keyw[2],"outlet")==0 ){
+				ns->regionMap[bid].name="outlet";
+				ns->regionMap[bid].type1 = 3;
+				ns->regionMap[bid].type2 = 0;
+				ns->regionMap[bid].fixedValue = atof(keyw[3]); //pout
 			}
 			else
 			{
-				cout<<"unknown boundry type in bound"<<keyw[2]<<endl;
+				errorHandler->fatalRuntimeError("unknown boundry type in bound",keyw[2]);
 				exit(0);
 			}
 		}
 		else if( strcmp(keyw[0],"volumn")==0 )
 		{
 			int bid= atoi( keyw[1] );
-			if(regionMap.find(bid)!=regionMap.end()){
+			if(ns->regionMap.find(bid)!=ns->regionMap.end()){
 				cout<<"repeating bid found"<<endl;
 			}
 			if(      strcmp(keyw[2],"fluid")==0 )//fluid
 			{
-				regionMap[bid].name= keyw[3];
-				regionMap[bid].type1 = 5;
-				regionMap[bid].type2 = 0;//fluid
+				ns->regionMap[bid].name= keyw[3];
+				ns->regionMap[bid].type1 = 5;
+				ns->regionMap[bid].type2 = 0;//fluid
 				for(int i=4;i<=ikey;++i){
-					regionMap[bid].initvalues[i-4]= atof( keyw[i] );
+					ns->regionMap[bid].initvalues[i-4]= atof( keyw[i] );
 				}
 			}
 			else if( strcmp(keyw[2],"solid")==0 ){// solid
-				regionMap[bid].name=keyw[3];
-				regionMap[bid].type1 = 5;
-				regionMap[bid].type2 = 1;//solid
+				ns->regionMap[bid].name=keyw[3];
+				ns->regionMap[bid].type1 = 5;
+				ns->regionMap[bid].type2 = 1;//solid
 				for(int i=4;i<=ikey;++i){
-					regionMap[bid].initvalues[i-4]= atof( keyw[i] );
+					ns->regionMap[bid].initvalues[i-4]= atof( keyw[i] );
 				}
 			}
 
 			else
 			{
-				cout<<"unknown boundry type in bound"<<keyw[2]<<endl;
-				exit(0);
+				errorHandler->fatalRuntimeError("unknown boundry type in bound",keyw[2]);
 			}
 		}
 
 		//--- post process 
 		else if( strcmp(keyw[0],"output")==0 )
 		{
-			noutput = atoi( keyw[1] );
+			ns->noutput = atoi( keyw[1] );
 			if(      strcmp(keyw[2],"vtk")==0 )
-				outputFormat = 1;
+				ns->outputformat = 1;
 			else if( strcmp(keyw[2],"tecplot")==0 )
-				outputFormat = 0;
+				ns->outputformat = 0;
 			else
-				outputFormat = 0;
+				ns->outputformat = 0;
+		}
+		else if(strcmp(keyw[0],"3dheatconduction")==0){
+			solve3DHeatConduction = true;	
 		}
 		else
 		{
-			cout<<"no such command, "<<keyw[0]<<endl;
-			exit(0);
+			errorHandler->fatalRuntimeError("no such command: ",keyw[0]);
 		}
 
 	}

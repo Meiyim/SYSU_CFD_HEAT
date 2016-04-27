@@ -45,7 +45,7 @@ double vec_max   (double *a, int n)
 {
     double s=0.;
     for( int i=0; i<n; i++ )
-        s = MAX( s, a[i] );
+        s = CYCASMAX( s, a[i] );
     return s;
 }
 
@@ -63,10 +63,12 @@ void SolveLinearEqu(Vector* Func(QMatrix*, Vector*, Vector*, int,PrecondProcType
     *IterRes = GetLastAccuracy();
 }
 
-void ErrorStop( string str )
+void OutArray2File(double arr[],int N,  ofstream &of)
 {
-	cout<<str<<endl;
-	exit(0);
+  for(int i=0; i<N; i++ ){
+    of<<arr[i]<<"  ";
+    if( i%5==0 ) of<<endl;
+  }
 }
 
 char *trimwhitespace(char *str)

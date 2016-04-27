@@ -1,58 +1,39 @@
 #include <iostream>
+#include "BasicType.h"
+#include "PreProcessor.h"
 #include "navier.h"
 
-int startup( );
-int simulate();
-int postprocess();
+ErrorHandler* errorHandler;
 
 int main( int argc, char *argv[] )
 {
-    startup ( );
-    
-    simulate( );
-    
-    postprocess( );
-    return 0;
-}
-
-int startup( )
-{
 	// read input card, configure(original) & grid(gmsh)
-	hcSolver.printer->printStarter();
-	hcSolver.InitSolverParam( );
-	// init constant
+	errorHandler = new ErrorHandler;
+	NavierStokesSolver* nsSolver = new NavierStokesSolver;
+	PreProcessor* preProcess = new PreProcessor;
+	nsSolver->printer->printStarter();
 	
 	// read mesh
-	hcSolver.ReadGridFile( );
+	preProcess->ReadParamFile(nsSolver);
+	preProcess->ReadGridFile();
 	// construct faces, compute geometry related info
-	hcSolver.CreateFaces ( );
-	hcSolver.CellFaceInfo( );
-	hcSolver.CheckAndAllocate( );
+	preProcess->CreateFaces ( );
+	preProcess->CellFaceInfo( );
+
+	preProcess->buildSolver(nsSolver);
+
+	nsSolver->CheckAndAllocate( );
 
 	// init flow field
-	hcSolver.InitFlowField();
+	nsSolver->InitFlowField();
+
+	//------------ MAIN CFD SOLVE -----------//
+	nsSolver->NSSolve();	
+
+	//------------ Post Process -----------//
+	printf("done \n");
+	delete nsSolver;
+	delete errorHandler;
 	return 0;
 }
-
-
-int simulate( )
-{
-	// other modules
-
-	// material property
-	// GasProperties( );
-	
-	// Main CFD
-	hcSolver.NSSolve();
-	
-	return 0;
-}
-
-
-int postprocess()
-{
-    return 0;
-}
-
-
 

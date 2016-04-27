@@ -5,14 +5,15 @@
 #include <vector>
 #include <stdlib.h>
 #include <string.h>
+#include <fstream>
 extern "C"{
 #include "laspack/laspack.h"
 }
 using namespace std;
 
-#define MAX(x,y)  ((x)>(y)?(x):(y))
-#define MIN(x,y)  ((x)<(y)?(x):(y))
-#define SIGN(x)   ((x)>0?1:(-1))
+#define CYCASMAX(x,y)  ((x)>(y)?(x):(y))
+#define CYCASMIN(x,y)  ((x)<(y)?(x):(y))
+#define CYCASSIGN(x)   ((x)>0?1:(-1))
 // maybe SIGN still has problem, not for 0
 
 // vector manipulation. should be defined as inline function for higher efficiency
@@ -27,7 +28,9 @@ double vec_max   (double[], int );
 void SolveLinearEqu( Vector* Func(QMatrix*, Vector*, Vector*, int,PrecondProcType, double),
 			QMatrix *qa, Vector *x, Vector *b, int MaxIter, PrecondProcType PreCond, double omega,
 					   double epsilon, int *Iter, double *IterRes);
-void ErrorStop( string str );
+
+
+void OutArray2File(double arr[],int N, ofstream &of);
 char *trimwhitespace(char *str);
 double ttime (void);
 
@@ -79,7 +82,7 @@ public:
 		double ret = 0.0;
 		for(auto it=pool.begin();it!=pool.end();++it)
 			ret += (*it);
-		printf("%s:\t%e\tcount%d\n",varname.c_str(),ret,pool.size());
+		printf("%s:\t%e\tcount%lu\n",varname.c_str(),ret,pool.size());
 	}
 };
 

@@ -1,9 +1,10 @@
 // gridfile, grid file name
 gridfile, tryGmesh.msh
+3dheatconduction
 // transient, dt, totaltime, Euler/Dual
 // transient, 0.1, 500., Dual
 // steady, Maximum iteration, residual
-steady, 1, 1.e-6
+steady, 10, 1.e-6
 // energy, on/off
 // relaxation factor, uvw, p, scalar(T and species)
 relaxation, 1.
@@ -15,5 +16,7 @@ bound, 1, Twall, 333.
 bound, 2, Hwall, 0;
 bound, 3, Twall, 273.
 volumn, 4, solid, solidin, 303, 2500., 2.33
-volumn, 5,solid, solidout, 298., 1000., 5.0
+//same as initflow
+volumn, 5, fluid, fluid, 1., 0., 0., 1.2, 298., 1.e-4, 1.e-2, 1.
 output, 100
+
