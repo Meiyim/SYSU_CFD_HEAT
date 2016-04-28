@@ -36,7 +36,7 @@ public:
     //tempreture calculation called by nsSolver
     virtual int solve();
 	// Post process output zone
-    virtual void Output2Tecplot ( std::ofstream& ofile);
+    virtual void Output2Tecplot ( std::ofstream& ofile,int nvar);
     // time scheme
     virtual void SaveTransientOldData();
     virtual double getResidule(); 

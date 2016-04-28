@@ -63,12 +63,21 @@ void SolveLinearEqu(Vector* Func(QMatrix*, Vector*, Vector*, int,PrecondProcType
     *IterRes = GetLastAccuracy();
 }
 
+void OutPlaceHolder2File(double placeHolder, int N, ofstream& of){
+  for(int i=0;i<N;i++){
+    of<<placeHolder<<" ";
+    if(i%5==4) of<<endl;
+  }
+  of<<endl;
+}
+
 void OutArray2File(double arr[],int N,  ofstream &of)
 {
   for(int i=0; i<N; i++ ){
     of<<arr[i]<<"  ";
-    if( i%5==0 ) of<<endl;
+    if( i%5==4 ) of<<endl;
   }
+  of<<endl;
 }
 
 char *trimwhitespace(char *str)

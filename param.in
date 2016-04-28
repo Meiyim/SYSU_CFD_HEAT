@@ -4,19 +4,26 @@ gridfile, tryGmesh.msh
 // transient, dt, totaltime, Euler/Dual
 // transient, 0.1, 500., Dual
 // steady, Maximum iteration, residual
-steady, 10, 1.e-6
+steady, 500, 1.e-6
 // energy, on/off
+energy, off
+density, 0
+turbulence, no
+PressureRef, 101325
+
 // relaxation factor, uvw, p, scalar(T and species)
-relaxation, 1.
+relaxation, 0.4, 0.2, 0.8
 limiter, WENO
 // initflow, u,v,w,ro,T,laminar viscosity, turbulence kinetic, turbulence dissipation
 //------ boundary condition ------
 // bound, id from gmsh boundary, type, parameters
-bound, 1, Twall, 333.
-bound, 2, Hwall, 0;
-bound, 3, Twall, 273.
-volumn, 4, solid, solidin, 303, 2500., 2.33
+//bound, 1, Twall, 333.
+//inlet: u, v, w, p r, t,
+bound, 1, inlet, 1., 0., 0., 0., 1.2, 298., 1.e-2, 1.
+bound, 2, Twall, 273.
+bound, 3, Twall, 273
+volumn, 7, solid, solidin, 303, 2500., 2.33
 //same as initflow
-volumn, 5, fluid, fluid, 1., 0., 0., 1.2, 298., 1.e-4, 1.e-2, 1.
+volumn, 8, fluid, fluid, 1., 0., 0., 1.2, 298., 1.e-4, 1.e-2, 1.
 output, 100
 

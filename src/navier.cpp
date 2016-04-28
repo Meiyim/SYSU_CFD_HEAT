@@ -197,26 +197,12 @@ void NavierStokesSolver::SaveTransientOldData( )
 
 void NavierStokesSolver::Output(){
  	ofstream of;
+ 	int nvar;
+
 	char tecTitle[256];
 	sprintf(tecTitle,"tec/res%04lu.dat",this->outputCounter++);
+
 	of.open(tecTitle);	
-
-	Output2Tecplot(of);
-
-	// other module...
-	for(map<string,CycasSolver*>::iterator iter = physicalModule.begin();
-		iter!=physicalModule.end(); ++iter){
-		iter->second->Output2Tecplot(of);
-	}
-
-	of.close();
-}
-
-void NavierStokesSolver::Output2Tecplot(std::ofstream& of)
-{
-	int i,j;
-	double *tmp,nvar;
-
 	of<<"variables="<<"\"x\","<<"\"y\","<<"\"z\""
 		<<"\"p\","<<"\"u\","<<"\"v\","<<"\"w\","<<"\"ro\","<<"\"T\","
 		<<"\"Mach\","<<"\"mu\"";
@@ -225,6 +211,24 @@ void NavierStokesSolver::Output2Tecplot(std::ofstream& of)
 		of<<"\"te\""<<"\"ed\"";
 		nvar = 13;
 	}
+
+	Output2Tecplot(of,nvar);
+
+	// other module...
+	for(map<string,CycasSolver*>::iterator iter = physicalModule.begin();
+		iter!=physicalModule.end(); ++iter){
+		iter->second->Output2Tecplot(of,nvar);
+	}
+
+	of.close();
+}
+
+void NavierStokesSolver::Output2Tecplot(std::ofstream& of,int nvar)
+{
+	int i,j;
+	double *tmp;
+
+
 	of<<endl;
 	of<<"zone n="<<Nvrt<<", e="<<Ncel<<", VARLOCATION=([1-3]=NODAL,[4-"<<nvar<<"]=CELLCENTERED)"
 		<<"DATAPACKING=BLOCK, ZONETYPE=FEBRICK"
@@ -232,7 +236,7 @@ void NavierStokesSolver::Output2Tecplot(std::ofstream& of)
 	for( j=0; j<3; j++ ){
 		for( i=0; i<Nvrt; i++ ){
 			of<<Vert[i][j]<<" ";
-			if( i%5==0 ) of<<endl;
+			if( i%5==4 ) of<<endl;
 		}
 	}
 	OutArray2File( Pn,Ncel,of );

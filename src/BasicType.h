@@ -107,7 +107,7 @@ public:
     virtual ~CycasSolver();
     //solver interface
     virtual int solve(){return 0;};
-    virtual void Output2Tecplot(std::ofstream& ofile){};
+    virtual void Output2Tecplot(std::ofstream& ofile,int nvar){};
     virtual int CheckAndAllocate() {return 0;};
     virtual void InitFlowField() {};
     virtual void SaveTransientOldData() {};

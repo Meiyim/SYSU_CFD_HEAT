@@ -524,120 +524,121 @@ int PreProcessor::findCoupledBoundary(int* new2Old,int coupledBoundId, int nc,//
             CellData** retCells,FaceData** retFaces,BoundaryData** retBnd,double*** retVert,
             int& retnc, int& retnf, int& retnb,int& retncb, int& retnv)//output
 {
-        int nv=0,nf=0,nb=0;
-        CellData* _cells = new CellData[nc];
-        double **_verts = new_Array2D<double>(Nvrt,3);
-        FaceData* _faces = new FaceData[Nfac];
-        vector<BoundaryData> _bounds;
-        _bounds.reserve(Nbnd);
+    int nv=0,nf=0,nb=0;
+    CellData* _cells = new CellData[nc];
+    double **_verts = new_Array2D<double>(Nvrt,3);
+    FaceData* _faces = new FaceData[Nfac];
+    vector<BoundaryData> _bounds;
+    _bounds.reserve(Nbnd);
 
-        map<int,int> old2NewV;
-        map<int,int> old2NewF;
+    map<int,int> old2NewV;
+    map<int,int> old2NewF;
 
-        for(int i=0;i!=nc;++i){//create vert & cell
-            _cells[i] = Cell[new2Old[i]]; 
-            for(int j=0;j!=8;++j){
-                int iv = _cells[i].vertices[j];
-                if(old2NewV.find(iv)!=old2NewV.end()){
-                    _cells[i].vertices[j] = old2NewV[iv];
-                }else{
-                    for(int k=0;k!=3;++k){
-                        _verts[nv][k] = Vert[iv][k]; 
-                    }
-                    old2NewV.insert(make_pair(iv,nv));
-                    nv++;
+    for(int i=0;i!=nc;++i){//create vert & cell
+        _cells[i] = Cell[new2Old[i]]; 
+        for(int j=0;j!=8;++j){
+            int iv = _cells[i].vertices[j];
+            if(old2NewV.find(iv)!=old2NewV.end()){
+                _cells[i].vertices[j] = old2NewV[iv];
+            }else{
+                for(int k=0;k!=3;++k){
+                    _verts[nv][k] = Vert[iv][k]; 
                 }
+                _cells[i].vertices[j] = nv;
+                old2NewV.insert(make_pair(iv,nv));
+                nv++;
             }
         }
-        for(int i=0;i!=nc;++i){//create face
-            for(int j=0;j!=_cells[i].nface;++j){
-                int iface = _cells[i].face[j];
-                if(old2NewF.find(iface)!=old2NewF.end()){
-                    int newIface = old2NewF[iface];
-                    _faces[newIface].cell2 = i;
-                    _cells[i].face[j] = newIface;
-                }else{
-                    _faces[nf] = Face[iface];
-                    _faces[nf].cell1 = i; 
-                    _faces[nf].cell2 = -10; //to be set
-                    _cells[i].face[j] = nf;
-                    for(int k=0;k!=4;++k){
-                        int iv = _faces[nf].vertices[k];
-                        _faces[nf].vertices[k] = old2NewV[iv];
-                    }
-                    old2NewF.insert(make_pair(iface,nf));
-                    nf++;
-                }
-            }
-        }
-        for(int i=0;i!=nc;++i){//config neighbouring
-            for(int j=0;j!=_cells[i].nface;++j){
-                int iface = _cells[i].face[j];//local
-                if(_faces[iface].cell1 == i){
-                    _cells[i].cell[j] = _faces[iface].cell2;
-                }else if(_faces[iface].cell2 == i){
-                    _cells[i].cell[j] = _faces[iface].cell1;
-                }else {
-                    assert(false); 
-                }
-            }
-        }
-
-        for(int i=0;i!=nf;++i){ //create coupled bound
-            if(_faces[i].cell2<0 && _faces[i].bnd < 0){
-                BoundaryData toPush;
+    }
+    for(int i=0;i!=nc;++i){//create face
+        for(int j=0;j!=_cells[i].nface;++j){
+            int iface = _cells[i].face[j];
+            if(old2NewF.find(iface)!=old2NewF.end()){
+                int newIface = old2NewF[iface];
+                _faces[newIface].cell2 = i;
+                _cells[i].face[j] = newIface;
+            }else{
+                _faces[nf] = Face[iface];
+                _faces[nf].cell1 = i; 
+                _faces[nf].cell2 = -10; //to be set
+                _cells[i].face[j] = nf;
                 for(int k=0;k!=4;++k){
-                    toPush.vertices[k] = _faces[i].vertices[k];
+                    int iv = _faces[nf].vertices[k];
+                    _faces[nf].vertices[k] = old2NewV[iv];
                 }
-                toPush.face = i;
-                toPush.rid = coupledBoundId;
-                _bounds.push_back(toPush);
-
-                _faces[i].bnd = nb;
-                nb++;
+                old2NewF.insert(make_pair(iface,nf));
+                nf++;
             }
         }
-
-        int ncb = nb;
-        for(int i=0;i!=nf;++i){
-            if(_faces[i].cell2<0 && _faces[i].bnd > 0){
-                BoundaryData toPush = Bnd[_faces[i].bnd];
-                toPush.face = i;
-                _bounds.push_back(toPush);
-                _faces[i].bnd = nb;
-                nb++;
+    }
+    for(int i=0;i!=nc;++i){//config neighbouring
+        for(int j=0;j!=_cells[i].nface;++j){
+            int iface = _cells[i].face[j];//local
+            if(_faces[iface].cell1 == i){
+                _cells[i].cell[j] = _faces[iface].cell2;
+            }else if(_faces[iface].cell2 == i){
+                _cells[i].cell[j] = _faces[iface].cell1;
+            }else {
+                assert(false); 
             }
         }
+    }
 
-        //compress size and return;
-        retnc = nc;
-        (*retCells) = _cells;
-        _cells = NULL;
-
-        retnv = nv;
-        (*retVert) = new_Array2D<double>(nv,3);
-        for(int i=0;i!=nv;++i){
-            for(int j=0;j!=3;++j){
-                (*retVert)[i][j] = _verts[i][j];
+    for(int i=0;i!=nf;++i){ //create coupled bound
+        if(_faces[i].cell2<0 && _faces[i].bnd < 0){
+            BoundaryData toPush;
+            for(int k=0;k!=4;++k){
+                toPush.vertices[k] = _faces[i].vertices[k];
             }
-        }
-        delete_Array2D(_verts,Nvrt,3);
+            toPush.face = i;
+            toPush.rid = coupledBoundId;
+            _bounds.push_back(toPush);
 
-        retnf = nf;
-        (*retFaces) = new FaceData[nf];
-        for(int i=0;i!=nf;++i){
-            (*retFaces)[i] = _faces[i];
+            _faces[i].bnd = nb;
+            nb++;
         }
-        delete []_faces;
+    }
 
-        retnb = nb;
-        retncb = ncb;
-        (*retBnd) = new BoundaryData[nb]; 
-        for(int i=0;i!=nb;++i){
-            (*retBnd)[i] = _bounds[i];
+    int ncb = nb;
+    for(int i=0;i!=nf;++i){
+        if(_faces[i].cell2<0 && _faces[i].bnd > 0){
+            BoundaryData toPush = Bnd[_faces[i].bnd];
+            toPush.face = i;
+            _bounds.push_back(toPush);
+            _faces[i].bnd = nb;
+            nb++;
         }
+    }
 
-        return 0;
+    //compress size and return;
+    retnc = nc;
+    (*retCells) = _cells;
+    _cells = NULL;
+
+    retnv = nv;
+    (*retVert) = new_Array2D<double>(nv,3);
+    for(int i=0;i!=nv;++i){
+        for(int j=0;j!=3;++j){
+            (*retVert)[i][j] = _verts[i][j];
+        }
+    }
+    delete_Array2D(_verts,Nvrt,3);
+
+    retnf = nf;
+    (*retFaces) = new FaceData[nf];
+    for(int i=0;i!=nf;++i){
+        (*retFaces)[i] = _faces[i];
+    }
+    delete []_faces;
+
+    retnb = nb;
+    retncb = ncb;
+    (*retBnd) = new BoundaryData[nb]; 
+    for(int i=0;i!=nb;++i){
+        (*retBnd)[i] = _bounds[i];
+    }
+
+    return 0;
 }
 
 //------------- Build Solver Geometry and other param --------//

@@ -345,16 +345,12 @@ void HeatConductionSolver::SaveTransientOldData( )
 }
 
 
-void HeatConductionSolver::Output2Tecplot(std::ofstream& of)
+void HeatConductionSolver::Output2Tecplot(std::ofstream& of,int nvar)
 {
 	int i,j;
 	double *tmp=NULL,nvar;
 	char tecTitle[256];
-	of<<"variables="<<"\"x\","<<"\"y\","<<"\"z\""
-		<<"\"t\","<<endl;
-
-	nvar = 4;
-	of<<"zone n="<<Nvrt<<", e="<<Ncel<<", VARLOCATION=([1-3]=NODAL,[4]=CELLCENTERED)"
+	of<<"zone n="<<Nvrt<<", e="<<Ncel<<", VARLOCATION=([1-3]=NODAL,[4-"<<nvar<<"]=CELLCENTERED)"
 		<<"DATAPACKING=BLOCK, ZONETYPE=FEBRICK"
 		<<endl;
 
@@ -365,7 +361,17 @@ void HeatConductionSolver::Output2Tecplot(std::ofstream& of)
 		}
 		of<<endl;
 	}
+	OutPlaceHolder2File(0,Ncel,of);
+	OutPlaceHolder2File(0,Ncel,of);
+	OutPlaceHolder2File(0,Ncel,of);
+	OutPlaceHolder2File(0,Ncel,of);
+	OutPlaceHolder2File(0,Ncel,of);
+
     OutArray2File( Tn,Ncel,of );
+    for(int i=7;i!=nvar+1;++i){
+		OutPlaceHolder2File(0,Ncel,of);
+    }
+    
 	for( i=0; i<Ncel; i++ ){
 		for( j=0;j<8;j++ )
 			of<<Cell[i].vertices[j]+1<<" ";

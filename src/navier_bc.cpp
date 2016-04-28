@@ -170,7 +170,9 @@ void NavierStokesSolver::SetBCTemperature( double *bt )
 		ic    = Face[iface].cell1;
 		switch( regionMap[rid].type1 ){
 		case(1):  // wall
-			assert(regionMap[rid].type2==0); //given flux is not implement for fluid yet.
+			assert(regionMap[rid].type2!=1); //given flux is not implement for fluid yet.
+											 //type2 == 0 given T
+											 //type2 == 2 coupled 
 			bt[i]= regionMap[rid].fixedValue;
 			break;
 		case(2):  // inlet

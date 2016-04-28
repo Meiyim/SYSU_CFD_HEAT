@@ -69,7 +69,7 @@ public:
     // read solver param, material, post, everything except 
     virtual void InitFlowField  ( );
 // Post process
-    virtual void Output2Tecplot (std::ofstream& ofile);
+    virtual void Output2Tecplot (std::ofstream& ofile,int nvar);
 // time scheme   
 	virtual void SaveTransientOldData( );
     virtual int solve(){return 0;}; //NS_Solver dont need this
