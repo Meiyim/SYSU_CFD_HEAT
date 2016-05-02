@@ -193,10 +193,11 @@ void specialTreatmentForWallTempreture(NavierStokesSolver* solver,
 	double dxc[3];
 	vec_minus( dxc, solver->Face[jface].x, solver->Cell[icell].x, 3 );
 	if(solver->regionMap[rid].type1 == 1 && solver->regionMap[rid].type2 == 1){//given flux;
-		fde = solver->Bnd[icell].q * solver->Face[jface].area;	
+		fde = solver->Bnd[bnd].q * solver->Face[jface].area;	
+		printf("flux %e, area %e\n",solver->Bnd[bnd].q,solver->Face[jface].area);
 		fdi = 0.0;
 	}else if(solver->regionMap[rid].type1 == 1 && solver->regionMap[rid].type2 == 2){//coupled the same as above
-		fde = solver->Bnd[icell].q * solver->Face[jface].area;	
+		fde = solver->Bnd[bnd].q * solver->Face[jface].area;	
 		fdi = 0.0;
 	}else if(solver->regionMap[rid].type1==4){//symmetric heat
 		fde = fdi = 0.0;

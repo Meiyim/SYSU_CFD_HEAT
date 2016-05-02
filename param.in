@@ -2,7 +2,7 @@ gridfile, ht.msh
 // transient, dt, totaltime, Euler/Dual
 // transient, 0.1, 500., Dual
 steady, 500, 1.e-7
-energy, off
+energy, on
 density, 0
 turbulence, no
 PressureRef, 101325.
@@ -18,7 +18,7 @@ initflow, 1., 0., 0., 1.2, 298., 1.e-4, 1.e-2, 1.
 // bound, id from gmsh boundary, type, parameters
 bound, 1, inlet, 1.,0.,0.,0., 1.2,298.
 bound, 2, outlet, 0.
-bound, 3, Hwall, 100.
+bound, 3, Twall, 333.
 bound, 4, sym
 bound, 5, sym
 bound, 0, sym

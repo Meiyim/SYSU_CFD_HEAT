@@ -167,8 +167,9 @@ void NavierStokesSolver::InitFlowField( )
 			}else if(reg.type2 == 1){
 				Bnd[i].q = reg.fixedValue;
 			}
-		}else if(reg.type1==1){//inlet
+		}else if(reg.type1==2){//inlet
 			BTem[i]= reg.initvalues[5];
+			printf("init%e\n",BTem[i]);
 		}else if(reg.type1==4){//sym
 	 		Bnd[i].q =0.0;
 		}
