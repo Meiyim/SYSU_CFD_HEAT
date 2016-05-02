@@ -94,7 +94,7 @@ void NavierStokesSolver::UpdateTurKEpsilon( )
 	//Solve turbulence kinetic energy
 	Q_Constr(&As,   "matrixU",   Ncel, False, Rowws, Normal, True);
 	// build matrix
-	BuildScalarMatrix( 2,TE,BTE,VisTE,TESource, ApTE );
+	BuildScalarMatrix( TE,BTE,VisTE,TESource, ApTE ,NULL);
 	// Solve equations
 	for( i=0; i<Ncel; i++ )
 		xsol.Cmp[i+1]= TE[i];
@@ -125,11 +125,11 @@ void NavierStokesSolver::UpdateTurKEpsilon( )
 	// Solve turbulence dissipation rate
 	Q_Constr(&As,   "matrixU",   Ncel, False, Rowws, Normal, True);
 	// build matrix
-	BuildScalarMatrix( 3,ED,BED,VisED,EDSource,ApED );
+	BuildScalarMatrix(ED,BED,VisED,EDSource,ApED,NULL );
 	// ?? specieal treatment, force ED[i] on boundary cells to be BED[ib]  ??
 	for( i=0; i<Nbnd; i++ ){
 		rid   = Bnd[i].rid ;
-		if( rid==1 ){
+		if( regionMap[rid].type1==1 ){
 			iface = Bnd[i].face;
 			ic    = Face[iface].cell1;
 			Q_SetLen  (&As, ic+1, 1);
@@ -168,45 +168,84 @@ void NavierStokesSolver::UpdateTurKEpsilon( )
 	delete []ApTE;
 	delete []ApED;
 
-	
-/*
-of.open("Ak.dat");
-for( i=0;i<Ncel;i++ ){
-	of<<As.Len[i+1]<<" : ";
-	for(int j=0;j<As.Len[i+1];j++)
-		of<<As.El[i+1][j].Pos<<" "<<As.El[i+1][j].Val<<" ";
-	of<<" ; "<<bs.Cmp[i+1];
-	of<<endl;
-}
-*/
-/*
-of.open("Aeps.dat");
-for( i=0;i<Ncel;i++ ){
-	of<<As.Len[i+1]<<" : ";
-	for(int j=0;j<As.Len[i+1];j++)
-		of<<As.El[i+1][j].Pos<<" "<<As.El[i+1][j].Val<<" ";
-	of<<" ; "<<bs.Cmp[i+1];
-	of<<endl;
-}
-of.close();
-*/
-
-/*
-of.open("ed.dat");
-for( i=0; i<Ncel; i++ ){
-	of<<ED[i]<<endl;
-}
-of.close( );
-*/
-
-//of.close();
-//of.open("te.dat");
-//for( i=0; i<Ncel; i++ ){
-//	of<<TE[i]<<endl;
-//}
-//of.close( );
 
 }
+
+// a callback function to implement given flux bc for tempreture
+// one shuold notice that gradient should solve before calling this function
+void specialTreatmentForWallTempreture(NavierStokesSolver* solver, 
+	  const int icell,const int jface, 
+	  const double* DiffCoef,const double* BPhi,
+	  double& app, double& fde, double& fdi, double& fcs ){
+	int bnd = solver->Face[jface].bnd;
+	int rid = solver->Bnd[bnd].rid;
+	double sav1    = solver->Face[jface].n[0];
+	double sav2    = solver->Face[jface].n[1];
+	double sav3    = solver->Face[jface].n[2];
+	double RUnormal= solver->RUFace[jface];
+
+	// diffusion boundary
+	double Visc   = DiffCoef[icell]; // This Should be changed using boundary condition. e.g., BVisTur[bnd]
+	double dphidx = solver->dPhidX[icell][0];
+	double dphidy = solver->dPhidX[icell][1];
+	double dphidz = solver->dPhidX[icell][2];
+
+	double dxc[3];
+	vec_minus( dxc, solver->Face[jface].x, solver->Cell[icell].x, 3 );
+	if(solver->regionMap[rid].type1 == 1 && solver->regionMap[rid].type2 == 1){//given flux;
+		fde = solver->Bnd[icell].q * solver->Face[jface].area;	
+		fdi = 0.0;
+	}else if(solver->regionMap[rid].type1 == 1 && solver->regionMap[rid].type2 == 2){//coupled the same as above
+		fde = solver->Bnd[icell].q * solver->Face[jface].area;	
+		fdi = 0.0;
+	}else if(solver->regionMap[rid].type1==4){//symmetric heat
+		fde = fdi = 0.0;
+	}else{
+		// diffusion to implicit, only to central cell
+		double ViscAreaLen = Visc*solver->Face[jface].rlencos;
+		app += ViscAreaLen;
+		fde  = Visc*( dphidx*sav1 + dphidy*sav2 + dphidz*sav3 );
+		fdi  = ViscAreaLen*( dphidx*dxc[0] + dphidy*dxc[1] + dphidz*dxc[2] - BPhi[bnd] );
+
+	}
+
+	// convection boundary
+	double f=0;
+	switch( solver->regionMap[rid].type1 ){
+	case(1):     //---- Wall ----
+				// convection to implicit, nothing
+		fcs = 0.;
+		break;
+	case(2):     //---- Inlet ----
+		// convection to implicit
+		if( RUnormal>0 ){
+			cout<<"reverse flow get out of inlet. stop!"<<endl;
+			exit(0);
+		}
+		f    = CYCASMIN( RUnormal , 0.0 );
+		app -= f;
+		fcs  = f*BPhi[bnd];
+		break;
+	case(3):     //---- Outlet ----??????????? boundary equal inner cell, so ???
+		if( RUnormal<0 ){
+			cout<<"reverse flow get in of outlet. stop!"<<endl;
+			// exit(0);
+		}
+		f    = CYCASMIN( RUnormal , 0.0 );
+		app -= f;
+		fcs  = f*BPhi[bnd];
+		break;
+	case(4):     //---- Symmetric ----
+		// RUnormal = 0.
+		fcs = 0.;
+		break;
+	default:
+		cout<<"no this type of boundary! rid="<<rid<<endl;
+		exit(0);
+	}
+}
+
+
 
 //------------------------------------------------------------
 // Energy transport equation : 
@@ -297,7 +336,7 @@ void NavierStokesSolver::UpdateEnergy( )
 	}
 
 	// boundary
-	SetBCTemperature( BTem );
+	SetBCTemperature( BTem,kcond );
 	// source terms, e.g., energy release, condensation/vaporization
 
 	if( !IfSteady ){
@@ -318,7 +357,7 @@ void NavierStokesSolver::UpdateEnergy( )
 	}
 
 	// build matrix
-	BuildScalarMatrix( 1, Tn,BTem,kcond,ESource,ApE );
+	BuildScalarMatrix( Tn,BTem,kcond,ESource,ApE,specialTreatmentForWallTempreture);
 	// Solve equations
 	for( i=0; i<Ncel; i++ )
 		xsol.Cmp[i+1]= Tn[i];
@@ -389,7 +428,7 @@ void NavierStokesSolver::UpdateSpecies( )
 
 		Q_Constr(&As,   "matrixU",   Ncel, False, Rowws, Normal, True);
 		// build matrix
-		BuildScalarMatrix( 4+is, RSn[is],BRS[is],DiffC[is],ScSource[is],ApS );
+		BuildScalarMatrix( /*4+is,*/ RSn[is],BRS[is],DiffC[is],ScSource[is],ApS,NULL);
 		// Solve equations
 		for( i=0; i<Ncel; i++ ) 
 			xsol.Cmp[i+1]= RSn[is][i];
@@ -405,7 +444,11 @@ void NavierStokesSolver::UpdateSpecies( )
 	}
 }
 
-void NavierStokesSolver::BuildScalarMatrix( int iSca, double *Phi,double *BPhi,double *DiffCoef, double *source, double *App )
+void NavierStokesSolver::BuildScalarMatrix(
+	double *Phi,double *BPhi,double *DiffCoef, 
+	double *source, double *App,
+	CallBackType specialTreatmentOnBoundary = NULL)
+	
 {
 	int i,j,iface, ip,in,ani[6],nj,rid,bnd;
 	double app,apn[6],lambda,lambda2, Visc,dxc[3],
@@ -429,7 +472,10 @@ void NavierStokesSolver::BuildScalarMatrix( int iSca, double *Phi,double *BPhi,d
 			ip     = Face[iface].cell1;
 			in     = Face[iface].cell2;
 			
-			if( in<0 ) // boundary, i=ip naturally
+			if(in < 0 && specialTreatmentOnBoundary != NULL){//call call back function to treet boundary
+				specialTreatmentOnBoundary(this,i,iface,DiffCoef,BPhi,app,fde,fdi,fcs);
+
+			}else if( in<0 && specialTreatmentOnBoundary == NULL) // boundary, i=ip naturally
 			{
 				bnd = Face[iface].bnd;
 				rid = Bnd[bnd].rid;

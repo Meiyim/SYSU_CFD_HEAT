@@ -1,6 +1,7 @@
 #pragma once
 #include <stdlib.h>
 #include "BasicType.h"
+#include "HeatConductionSolver.h"
 #include "tools.h"
 extern "C"{ 
 #include "laspack/laspack.h"
@@ -23,6 +24,7 @@ public:
 
     // control param
     bool   SolveEnergy,SolveSpecies;
+    bool   Solve3DHeatConduction;
 	int    TurModel,DensityModel, TimeScheme;
 	    // TurModel=0: laminar flow; =1: k-epsilon; =2: wait to implement
 		// DensityModel=0: constant density; =1: perfect gas ro=p/(RT); =2: wait to implement
@@ -40,6 +42,9 @@ public:
     int    step,MaxStep, MaxOuterStep;
     // --- post process
     int    noutput,outputformat;
+    //--- global flow field initial
+    double initvalues[20];
+
 
     // physical variables at cell center
 	double  *Rn, *Un, *Vn, *Wn,  *Pn, *Tn, *TE, *ED;     // primitive vars
@@ -89,7 +94,11 @@ public:
 	void CorrectRUFace2(double*);
 	// scalar. temperature, other passive variables
 	// void ScalarTranport   ( double *Phi, double *BPhi, double *DiffCoef, double *source );
-	void BuildScalarMatrix(int iSca,double *Phi, double *BPhi, double *DiffCoef, double *source, double *App);
+
+	typedef  void(*CallBackType)(NavierStokesSolver*,const int,const int,const double*,const double*, double&,double&,double&,double&) ;
+	void BuildScalarMatrix(
+		double *,double *,double *,
+		double *, double *,CallBackType);
 	     // iSca= 1:temperature; =2: ke; =3: ed;  = 4-larger: species concentration
 	void UpdateEnergy     ( );
 	void UpdateSpecies    ( );
@@ -100,7 +109,7 @@ public:
 	void SetBCVelocity( double*br,double*bu,double*bv,double*bw );
 	void SetBCPressure( double*bp );
 	void SetBCDeltaP  ( double*bp, double *dp );
-	void SetBCTemperature( double *bt );
+	void SetBCTemperature( double *bt,double* diffCoef );
 	void SetBCSpecies ( double **brs );
 	void SetBCKEpsilon( double *TESource,double *EDSource,double *ApTE,double*ApED,double *Prod);
 

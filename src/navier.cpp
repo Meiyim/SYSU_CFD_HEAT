@@ -46,6 +46,13 @@ void NavierStokesSolver::NSSolve( )
 			//2. energy couple
 			if( SolveEnergy  ) {
 				UpdateEnergy ( );
+				/*
+				if(Solve3DHeatConduction){
+					HeatConductionSolver* ht = dynamic_cast<HeatConductionSolver*>(physicalModule["3dHeatConduction"]);
+					ht->coupledBoundCommunicationFluid2Solid(BTem,NCoupledBnd);
+					ht->solve();
+				}
+			    */	
 			}
 			//3. species transport
 			if( SolveSpecies ) UpdateSpecies( );//to be implemented
@@ -108,16 +115,14 @@ void NavierStokesSolver::InitFlowField( )
 {
 	int i;
 
-	for( i=0; i<Ncel; i++ )
-	{
-		int rid = Cell[i].rid;
-		assert(regionMap[rid].type1==5&&regionMap[rid].type2==0);//fluid
-		double* initvalues = regionMap[rid].initvalues;
+	for(i =0;i!=Ncel;++i){
+		double* initvalues = this->initvalues; //global initial
 		Un[i] = initvalues[0];
 		Vn[i] = initvalues[1];
 		Wn[i] = initvalues[2];
 		Rn[i] = initvalues[3];
 		Tn[i] = initvalues[4];
+		Pn[i] = 0.0;
 		if( DensityModel== 1 ) Rn[i]= (Pn[i]+PressureReference)/(Rcpcv*Tn[i]);
 
 		VisLam[i]= initvalues[5]; // 0.6666667e-2;  // 1.458e-6 * pow(Tn[i],1.5) /(Tn[i]+110.5) ;
@@ -130,6 +135,46 @@ void NavierStokesSolver::InitFlowField( )
 		}
 	}
 
+/*
+	for( i=0; i<Ncel; i++ )
+	{
+		int rid = Cell[i].rid; //volumn initial
+		//assert(regionMap[rid].type1==5&&regionMap[rid].type2==0);//fluid
+		double* initvalues = regionMap[rid].initvalues;
+		Un[i] = initvalues[0];
+		Vn[i] = initvalues[1];
+		Wn[i] = initvalues[2];
+		Rn[i] = initvalues[3];
+		Tn[i] = initvalues[4];
+		Pn[i] = 0.0;
+		if( DensityModel== 1 ) Rn[i]= (Pn[i]+PressureReference)/(Rcpcv*Tn[i]);
+		VisLam[i]= initvalues[5]; // 0.6666667e-2;  // 1.458e-6 * pow(Tn[i],1.5) /(Tn[i]+110.5) ;
+		VisTur[i]= 0.;
+		if( TurModel==1 )
+		{
+			TE[i]    = initvalues[6];  // 1.e-4*(Un[i]*Un[i]+Vn[i]*Vn[i]+Wn[i]*Wn[i]);
+			ED[i]    = initvalues[7];    // TurKEpsilonVar::Cmu * pow(TE[i],1.5) / 1.;
+			VisTur[i]= Rn[i]*TurKEpsilonVar::Cmu * TE[i]*TE[i]/(ED[i]+SMALL);
+		}
+	}
+*/
+
+	for(i=0;i!=Nbnd;++i){
+		BdRegion& reg = regionMap[Bnd[i].rid];
+		if(reg.type1==1){
+			if(reg.type2==0){
+				BTem[i] = reg.fixedValue;
+			}else if(reg.type2 == 1){
+				Bnd[i].q = reg.fixedValue;
+			}
+		}else if(reg.type1==1){//inlet
+			BTem[i]= reg.initvalues[5];
+		}else if(reg.type1==4){//sym
+	 		Bnd[i].q =0.0;
+		}
+
+	}
+
 	for( i=0;i<Nfac;i++ )
 		RUFace[i] = 0.;
 
@@ -138,6 +183,7 @@ void NavierStokesSolver::InitFlowField( )
 		iter!=physicalModule.end(); ++iter){
 		iter->second->InitFlowField();
 	}
+
 }
 
 void NavierStokesSolver::SaveTransientOldData( )
@@ -282,6 +328,7 @@ NavierStokesSolver::NavierStokesSolver():
 	DensityModel(0),
 	SolveEnergy(false),
 	SolveSpecies(false),
+	Solve3DHeatConduction(false),
 	Nspecies(0),
 	PressureReference(1.01325e5),
 	cellPressureRef(0),
@@ -344,6 +391,8 @@ NavierStokesSolver::~NavierStokesSolver()
 		iter!=physicalModule.end(); ++iter){
 			delete iter->second;
 	}
+	delete printer;
+
    	delete [] Rn;
 	delete [] Un;
 	delete [] Vn;
@@ -411,7 +460,11 @@ int NavierStokesSolver::CheckAndAllocate()
 		c1= Face[i].cell1;
 		c2= Face[i].cell2;
 		if( c2==-10 || c2>=0 ) continue;
-		cout<<"error in face right hand side!"<<endl;
+		errorHandler->fatalRuntimeError("error in face right hand side");
+	}
+	// check parameter conflict:
+	if(!SolveEnergy && Solve3DHeatConduction){
+		errorHandler->fatalRuntimeError("must turn on SolveEnergy, if Solve3DHeatConduction is on");
 	}
 
 

@@ -17,10 +17,9 @@ void PreProcessor::ReadParamFile(NavierStokesSolver* ns)
 	for( i=0; i<20; i++ )
 		keyw[i] = new char[30];
 
-	fin.open(GridFileName);
-	if( ! fin.is_open( ) ){
-		cout<<"param file does not exist!"<<endl;
-		exit(0);
+	fin.open(paramFileName.c_str());
+	if( ! fin ){
+		errorHandler->fatalRuntimeError("param file can not found",paramFileName.c_str());
 	}
 	while( getline( fin,str ) )
 	{
@@ -136,6 +135,12 @@ void PreProcessor::ReadParamFile(NavierStokesSolver* ns)
 			else
 				errorHandler->fatalRuntimeError("error in limiter definition");
 		}
+		else if( strcmp(keyw[0],"initflow")==0 )
+		{
+			for( i=1; i<=ikey; i++ )
+				ns->initvalues[i-1]= atof( keyw[i] );
+		}
+
 
 		//--- boundary condition
 		else if( strcmp(keyw[0],"bound")==0 )
@@ -234,6 +239,7 @@ void PreProcessor::ReadParamFile(NavierStokesSolver* ns)
 		}
 		else if(strcmp(keyw[0],"3dheatconduction")==0){
 			solve3DHeatConduction = true;	
+			ns->Solve3DHeatConduction = true;
 		}
 		else
 		{
@@ -243,4 +249,17 @@ void PreProcessor::ReadParamFile(NavierStokesSolver* ns)
 	}
 
 	fin.close( );
+}
+
+void PreProcessor::parseCommandLine(int argc, char** argv){
+	for(int i=1;i<argc;++i){
+		string command(argv[i]);
+		if((++i)>argc){
+			break;
+		}
+		string value(argv[i]);
+		if(command=="-paramfile"){
+			paramFileName = value;
+		}
+	}		
 }

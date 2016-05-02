@@ -29,7 +29,7 @@ void SolveLinearEqu( Vector* Func(QMatrix*, Vector*, Vector*, int,PrecondProcTyp
 			QMatrix *qa, Vector *x, Vector *b, int MaxIter, PrecondProcType PreCond, double omega,
 					   double epsilon, int *Iter, double *IterRes);
 
-
+void OutPlaceHolder2File(double placeHolder, int N, ofstream& of);
 void OutArray2File(double arr[],int N, ofstream &of);
 char *trimwhitespace(char *str);
 double ttime (void);

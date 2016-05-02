@@ -7,7 +7,7 @@
 #include <string>
 #include <map>
 #include <vector>
-#include <numeric>
+#include <limits>
 #include <assert.h>
 extern "C"{ 
     #include "laspack/laspack.h"
@@ -41,6 +41,17 @@ public:
 // connect boundary to faces, boundary to BdRegion
 class BoundaryData{
 public:
+    BoundaryData():
+        face(-1),
+        rid(-1),
+        distance(0.0),
+        yplus(0.0),
+        uplus(0.0),
+        h(0.0),q(0.0)
+    {
+        vertices[0]= vertices[1]=vertices[2]=vertices[3] = -1;
+        shear[0]=shear[1]=shear[2]= 0.0;
+    }
     int face;                // belongs to face...
     int vertices[4];         // the 4 vertices, to be done allocatable
     int rid;                 // region id as set in rtable
@@ -51,7 +62,6 @@ public:
     double  shear[3];        // shearstress components
     double  h;               // local heattransfer coef.
     double  q;               // local heat flux (in W/m2)
-    double  T;               // local wall temperature
 };
 // store the data set in one type of boundary
 class BdRegion{

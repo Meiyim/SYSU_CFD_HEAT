@@ -23,6 +23,7 @@ public:
 	// variables at face center
 	// Boundary faces values
 	double  *BTem;
+	double  *BFluidTem;
     
 	// laspack library work array
 	QMatrix As;                // As for non-sysmmetric, Ap for sysmmetric matrix
@@ -41,10 +42,15 @@ public:
     virtual void SaveTransientOldData();
     virtual double getResidule(); 
 
+    // special method
+    void coupledBoundCommunicationFluid2Solid(const double* bt, int ncb);
+    void coupledBoundCommunicationSolid2Fluid(BoundaryData* bnd,int ncb);
+
+
 private:
 	// scalar. temperature, other passive variables
 	// void ScalarTranport   ( double *Phi, double *BPhi, double *DiffCoef, double *source );
-	void BuildScalarMatrix(int iSca,double *Phi, double *BPhi, double *DiffCoef, double *source, double *App);
+	void BuildScalarMatrix(double *Phi, double *BPhi, double *DiffCoef, double *source, double *App);
     // iSca= 1:temperature; =2: ke; =3: ed;  = 4-larger: species concentration
 	void UpdateEnergy     ( );
 

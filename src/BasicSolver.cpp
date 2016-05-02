@@ -41,37 +41,36 @@ int CycasSolver::Gradient( double *phi, double *Bphif, double **phigd )
         c2     = Face[i].cell2;
 
         if( c2>=0 ){
-            pf = lambda*phi[c1] + (1.-lambda)*phi[c2];
-			for( g=0;g<3;g++ ){
-				phigd[c1][g] += pf * Face[i].n[g];
-				phigd[c2][g] -= pf * Face[i].n[g];
-			}
-		}
-        else{
-
-            pf = Bphif[Face[i].bnd]; // how to add boundary condition ?
-	    for( g=0;g<3;g++ )
+                pf = lambda*phi[c1] + (1.-lambda)*phi[c2];
+	for( g=0;g<3;g++ ){
 		phigd[c1][g] += pf * Face[i].n[g];
-	    }
+		phigd[c2][g] -= pf * Face[i].n[g];
+	}
+       }else{
+            pf = Bphif[Face[i].bnd]; // how to add boundary condition ?
+	    for( g=0;g<3;g++ ){
+		phigd[c1][g] += pf * Face[i].n[g];
+                   }
+
+            }
     }
-
-
-
+    //CHECK_ARRAY(Bphif,Nbnd);
+    //CHECK_ARRAY(phigd[0],3*Ncel);
     for( i=0; i<Ncel; i++ ){
         for( g=0; g<3; g++ )
             phigd[i][g] /= Cell[i].vol;
-    }
+     }
 
-	if(      limiter==0 )
-	{}
-	else if( limiter==1 )
-		Limiter_Barth( phi, phigd );
-	else if( limiter==2 )
-		Limiter_MLP  ( phi, phigd );
-	else if( limiter==3 )
-		Limiter_WENO ( phi, phigd );
-	else
-        errorHandler->fatalRuntimeError("no such limiter choice");
+    if(      limiter==0 )
+    {}
+    else if( limiter==1 )
+	Limiter_Barth( phi, phigd );
+    else if( limiter==2 )
+	Limiter_MLP  ( phi, phigd );
+    else if( limiter==3 )
+	Limiter_WENO ( phi, phigd );
+    else
+                errorHandler->fatalRuntimeError("no such limiter choice");
 
     return 0;
 }

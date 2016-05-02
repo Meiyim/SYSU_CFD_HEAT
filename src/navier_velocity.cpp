@@ -17,47 +17,51 @@ int NavierStokesSolver::CalculateVelocity( )
 
 	for( i=0; i<10; i++ ) Residual[i]= 0.;
 	Q_Constr(&As,   "matrixU",   Ncel, False, Rowws, Normal, True);
-    BuildVelocityMatrix( );
-
+    	BuildVelocityMatrix( );
 
 	// solve U
 	for( i=0; i<Ncel; i++ ) 
 		xsol.Cmp[i+1]= Un[i];
 	SolveLinearEqu( GMRESIter, &As, &xsol, &bu, 500, SSORPrecond, 1.2, 1.e-8, &Iter, &IterRes );
-	if( Iter>=500 && IterRes>1.e-8 ){ // ErrorStop( "U cannot converge" );
-		cout<<"U cannot converge."<<Iter<<" "<<IterRes<<endl;
-		exit(0);
-	}
+	
+	if( Iter>=500 && IterRes>1.e-8 ) errorHandler->fatalRuntimeError( "W cannot converge, res:",IterRes );
+
 	for( i=0; i<Ncel; i++ ){
 		Residual[0] += fabs( Un[i] - xsol.Cmp[i+1] )*Cell[i].vol;
 		Un[i] = xsol.Cmp[i+1];
 	}
-	double unorm = l2Norm_V(&xsol);
+	//double unorm = l2Norm_V(&xsol);
 
 
 	// solve V
 	for( i=0; i<Ncel; i++ )
 		xsol.Cmp[i+1]= Vn[i];
 	SolveLinearEqu( GMRESIter, &As, &xsol, &bv, 500, SSORPrecond, 1.2, 1.e-8, &Iter, &IterRes );
-	if( Iter>=500 && IterRes>1.e-8 ) errorHandler->fatalRuntimeError( "V cannot converge" );
+	if( Iter>=500 && IterRes>1.e-8 ) errorHandler->fatalRuntimeError( "V cannot converge, res:",IterRes );
 	for( i=0; i<Ncel; i++ ) {
 		Residual[1] += fabs( Vn[i] - xsol.Cmp[i+1] )*Cell[i].vol;
 		Vn[i] = xsol.Cmp[i+1];
 	}
 
-	double vnorm = l2Norm_V(&xsol);
+	//double vnorm = l2Norm_V(&xsol);
 
 	// solve W
 	for( i=0; i<Ncel; i++ )
 		xsol.Cmp[i+1]= Wn[i];
 	SolveLinearEqu( GMRESIter, &As, &xsol, &bw, 500, SSORPrecond, 1.2, 1.e-8, &Iter, &IterRes );
-	if( Iter>=500 && IterRes>1.e-8 ) errorHandler->fatalRuntimeError( "W cannot converge" );
+	if( Iter>=500 && IterRes>1.e-8 ) errorHandler->fatalRuntimeError( "W cannot converge, res:",IterRes );
 	for( i=0; i<Ncel; i++ ){
 		Residual[2] += fabs( Wn[i] - xsol.Cmp[i+1] )*Cell[i].vol;
 		Wn[i] = xsol.Cmp[i+1];
 	}
 
-	double wnorm = l2Norm_V(&xsol);
+	//double wnorm = l2Norm_V(&xsol);
+
+/*
+    	CHECK_ARRAY(bu.Cmp+1,Ncel);
+    	CHECK_ARRAY(bv.Cmp+1,Ncel);
+    	CHECK_ARRAY(bw.Cmp+1,Ncel);
+*/
 
 	Q_Destr ( &As );
 
@@ -86,22 +90,6 @@ void NavierStokesSolver::BuildVelocityMatrix( )
 	Gradient ( Vn, BV,   dVdX );
 	Gradient ( Wn, BW,   dWdX );
 	Gradient ( Pn, BPre, dPdX );
-
-	
-	/* This will lead to turbulence problem, wierd !!
-	   limiter on velocity seems to affect turbulence generation */
-	/*if( limiter==1 ){
-		Limiter_MLP( Un, dUdX );
-		Limiter_MLP( Vn, dVdX );
-		Limiter_MLP( Wn, dWdX );
-		Limiter_MLP( Pn, dPdX );
-	}
-	else if( limiter==2 ){
-		Limiter_WENO( Un, dUdX );
-		Limiter_WENO( Vn, dVdX );
-		Limiter_WENO( Wn, dWdX );
-		Limiter_WENO( Pn, dPdX );
-	}*/
 
 
 
@@ -190,52 +178,49 @@ void NavierStokesSolver::BuildVelocityMatrix( )
 				default:
 					errorHandler->fatalRuntimeError("no such rid");
 				}
-				
 
-			// convection boundary
-			switch( regionMap[rid].type1 ){
-			case(1):     //---- Wall ----
-				// convection to implicit, nothing
-				fcs[0] = 0.;
-				fcs[1] = 0.;
-				fcs[2] = 0.;
-				break;
-			case(2):     //---- Inlet ----
-				// convection to implicit
-				if( RUnormal>0 ){
-					cout<<"warning!! reverse flow get out of inlet. It may stop!"<<endl;
-					// exit(0);
+				// convection boundary
+				switch( regionMap[rid].type1 ){
+				case(1):     //---- Wall ----
+					// convection to implicit, nothing
+					fcs[0] = 0.;
+					fcs[1] = 0.;
+					fcs[2] = 0.;
+					break;
+				case(2):     //---- Inlet ----
+					// convection to implicit
+					if( RUnormal>0 ){
+						cout<<"warning!! reverse flow get out of inlet. It may stop!"<<endl;
+						// exit(0);
+					}
+					f      = CYCASMIN( RUnormal , 0.0 );
+					app   -= f;
+					fcs[0] = f*BU[bnd];
+					fcs[1] = f*BV[bnd];
+					fcs[2] = f*BW[bnd];
+					break;
+				case(3):     //---- Outlet ----??????????? boundary equal inner cell, so ???
+					if( RUnormal<0 ){
+						// cout<<"warning reverse flow get in of outlet. It may stop!"<<endl;
+						// exit(0);
+					}
+					f      = CYCASMIN( RUnormal , 0.0 );
+					app   -= f;
+					fcs[0] = f*BU[bnd];
+					fcs[1] = f*BV[bnd];
+					fcs[2] = f*BW[bnd];
+					break;
+				case(4):     //---- Symmetric ----
+					// RUnormal = 0.
+					fcs[0] = 0.;
+					fcs[1] = 0.;
+					fcs[2] = 0.;
+					break;
+				default:
+					cout<<"no this type of boundary! rid="<<rid<<endl;
+					exit(0);
 				}
-				f      = CYCASMIN( RUnormal , 0.0 );
-				app   -= f;
-				fcs[0] = f*BU[bnd];
-				fcs[1] = f*BV[bnd];
-				fcs[2] = f*BW[bnd];
-				break;
-			case(3):     //---- Outlet ----??????????? boundary equal inner cell, so ???
-				if( RUnormal<0 ){
-					// cout<<"warning reverse flow get in of outlet. It may stop!"<<endl;
-					// exit(0);
-				}
-				f      = CYCASMIN( RUnormal , 0.0 );
-				app   -= f;
-				fcs[0] = f*BU[bnd];
-				fcs[1] = f*BV[bnd];
-				fcs[2] = f*BW[bnd];
-				break;
-			case(4):     //---- Symmetric ----
-				// RUnormal = 0.
-				fcs[0] = 0.;
-				fcs[1] = 0.;
-				fcs[2] = 0.;
-				break;
-			default:
-				cout<<"no this type of boundary! rid="<<rid<<endl;
-				exit(0);
-			}
-				
 
-				
 			}
 			else // inner cell
 			{
@@ -355,9 +340,9 @@ void NavierStokesSolver::BuildVelocityMatrix( )
 		
 		Q_SetLen  (&As, i+1, nj + 1);
 		// center cell
-	        Q_SetEntry(&As, i+1, 0,  i+1, app);
+	    	Q_SetEntry(&As, i+1, 0,  i+1, app);
 		// off-diagonal
-	        for( j=0; j<nj; j++ )
+	       	for( j=0; j<nj; j++ )
 			Q_SetEntry(&As, i+1, j+1, ani[j]+1, apn[j]);
 
 		// right hand side, including
@@ -366,16 +351,7 @@ void NavierStokesSolver::BuildVelocityMatrix( )
 		bu.Cmp[i+1] = su + (1.-URF[0])*app*Un[i] + ( -dPdX[i][0] + Rn[i]*gravity[0] )*Cell[i].vol;
 		bv.Cmp[i+1] = sv + (1.-URF[0])*app*Vn[i] + ( -dPdX[i][1] + Rn[i]*gravity[1] )*Cell[i].vol;
 		bw.Cmp[i+1] = sw + (1.-URF[0])*app*Wn[i] + ( -dPdX[i][2] + Rn[i]*gravity[2] )*Cell[i].vol;
-		/*
-		printf("su  %f\n",su);
-		printf("URF  %f\n",URF[0]);
-		printf("app  %f\n",app);
-		printf("Un  %f\n",Un[i]);
-		printf("dpdx  %f\n",dPdX[i][0]);
-		printf("Rn  %f\n",Rn[i]);
-		printf("gravity  %f\n",gravity[0]);
-		printf("cellvol  %f\n",Cell[i].vol);
-		*/
+
 
 	}
 

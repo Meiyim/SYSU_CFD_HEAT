@@ -17,13 +17,18 @@ void HeatConductionSolver::SetBCTemperature( double *bt )
 		rid   = Bnd[i].rid;
 		iface = Bnd[i].face;
 		ic    = Face[iface].cell1;
-		switch( regionMap[rid].type1 ){
+		BdRegion& reg = regionMap[rid];
+		switch( reg.type1 ){
 		case(1):  // wall
-			if(regionMap[rid].type2==0){
-				bt[i] = regionMap[rid].fixedValue;//given T
+			if(reg.type2==0){
+				//bt remain initial value;
 			}else if(regionMap[rid].type2==1){
-			   	//bt[i] = Tn[ic] - regionMap[rid].fixedValue / (diffCoef[ic] *Face[iface].rlencos );// given flux // by CHENXUYI
-			   	bt[i] = 0.0;// bt will not be used if 2nd kind of boundary type
+			   	bt[i] = Tn[ic] - Bnd[i].q / (diffCoef[ic] *Face[iface].rlencos );// given flux // by CHENXUYI
+ 				// bt will not be used if 2nd kind of boundary type
+ 				//bt is used in gradient calculation
+			}else if(regionMap[rid].type2==2){//coupled bound, 3rd bound in solid field
+				bt[i] = Tn[ic];
+				//bc is set in NS solver
 			}else{
 				assert(false);
 			}
@@ -77,7 +82,7 @@ void HeatConductionSolver::UpdateEnergy( )
 	}
 
 	// build matrix
-	BuildScalarMatrix( 1, Tn,BTem,diffCoef,ESource,ApE );
+	BuildScalarMatrix(Tn,BTem,diffCoef,ESource,ApE );
 	// Solve equations
 	for( i=0; i<Ncel; i++ )
 		xsol.Cmp[i+1]= Tn[i];
@@ -98,7 +103,7 @@ void HeatConductionSolver::UpdateEnergy( )
 
 
 
-void HeatConductionSolver::BuildScalarMatrix( int iSca, double *Phi,double *BPhi,double *DiffCoef, double *source, double *App )
+void HeatConductionSolver::BuildScalarMatrix(double *Phi,double *BPhi,double *DiffCoef, double *source, double *App )
 {
 	int i,j,iface, ip,in,ani[6],nj,rid,bnd;
 	double app,apn[6],lambda,lambda2, Visc,dxc[3],
@@ -135,20 +140,22 @@ void HeatConductionSolver::BuildScalarMatrix( int iSca, double *Phi,double *BPhi
 				dphidy = dPhidX[i][1];
 				dphidz = dPhidX[i][2];
 				vec_minus( dxc, Face[iface].x, Cell[i].x, 3 );
+
 				switch( regionMap[rid].type1 ){
 				case(1):
-					if(regionMap[rid].type2==0){
+					if(regionMap[rid].type2==0){//given T , BT is set in navier_bc
 						ViscAreaLen = Visc*Face[iface].rlencos;
 						app += ViscAreaLen;
 						fde  = Visc*( dphidx*sav1 + dphidy*sav2 + dphidz*sav3 );
 						fdi  = ViscAreaLen*( dphidx*dxc[0] + dphidy*dxc[1] + dphidz*dxc[2] - BPhi[bnd] );
 						break;
 					}				
+					if(regionMap[rid].type2==2){//3rd boundary condiction, bt is tempreture of new wall fluid
+						//BFluidTem
+					}
 				case(4): //symmetric or given flux
-					sphi += regionMap[rid].fixedValue * Face[iface].area;
-					fde = 0.;
+					fde = Bnd[i].q * Face[iface].area;// flux boundary to source
 					fdi = 0.;
-					break;
 					// diffusion to implicit, only to central cell
 				default:
 					errorHandler->fatalRuntimeError("no such rid");
@@ -217,48 +224,6 @@ int HeatConductionSolver::solve(){
 	UpdateEnergy();
 }
 
-/***** A STAND ALONE HEAT SOLVER
-int HeatConductionSolver::solve( )
-{
-	int iter;
-	double tstart,tend;
-	tstart = ttime( );
-	if(IfSteady){
-		dt = 1.e9;
-		MaxOuterStep = MaxStep;
-	}
-   	 for( step=1; step<=MaxStep; step++ )
-  	  {
-  	  	for(iter=1;iter<=MaxOuterStep;++iter){
-			if( (step-1)%10==0 )printer->printSectionHead(cur_time);
-			cur_time += dt;
-			if(!IfSteady){
-				SaveTransientOldData( );
-			}
-
-			// outer iteration, drive residual to zero for every physical time step
-			UpdateEnergy();
-			printer->printStepStatus(step,iter,cur_time,dt,0.0);
-			if( step%noutput==0 ){
-				if( outputFormat==0 ) Output2Tecplot ( );  // exit(0);
-			}
-			
-			if(false){//residual small enough
-				break;
-			}
-
-		}
-		if( cur_time >= total_time )break;
-	}
-
-   	 Output2Tecplot();
-	printer->printEnding();
-
-	//if( outputFormat==0 ) Output2Tecplot ( );
-	//if( outputFormat==1 ) Output2VTK     ( );
-	//WriteBackupFile( );
-}
-******/
 int HeatConductionSolver::CheckAndAllocate()
 {
 	int i,c1,c2;
@@ -289,6 +254,7 @@ int HeatConductionSolver::CheckAndAllocate()
 	dPhidX = new_Array2D<double>(Ncel,3);
 
 	BTem= new double[Nbnd];
+	BFluidTem = new double[NCoupledBnd];
 
 	// laspack working array
 	V_Constr(&bs,   "rightU",    Ncel, Normal, True);
@@ -314,10 +280,21 @@ void HeatConductionSolver::InitFlowField( )
 		diffCoef[i] = initvalues[2];
 
 	}
-
-
-
-
+	for( i=0;i!=Nbnd;++i){
+		
+		BdRegion& reg = regionMap[Bnd[i].rid];
+		if(reg.type1==1){
+			if(reg.type2==0){//given T
+				BTem[i] = reg.fixedValue;
+			}else if(reg.type2 == 1){//given flux
+				Bnd[i].q = reg.fixedValue;
+			}else{
+				assert(false);	
+			}
+		}else if(reg.type1==4){//sym
+			Bnd[i].q =0.0;	   //adiabatic
+		}
+	}
 	// change grid boundary to actual boundary
 }
 
@@ -348,7 +325,7 @@ void HeatConductionSolver::SaveTransientOldData( )
 void HeatConductionSolver::Output2Tecplot(std::ofstream& of,int nvar)
 {
 	int i,j;
-	double *tmp=NULL,nvar;
+	double *tmp=NULL;
 	char tecTitle[256];
 	of<<"zone n="<<Nvrt<<", e="<<Ncel<<", VARLOCATION=([1-3]=NODAL,[4-"<<nvar<<"]=CELLCENTERED)"
 		<<"DATAPACKING=BLOCK, ZONETYPE=FEBRICK"
@@ -385,30 +362,68 @@ double HeatConductionSolver::getResidule(){
 }
 
 
+/*********************************
+* 	Coupled boundary communication
+*********************************/
+void HeatConductionSolver::coupledBoundCommunicationFluid2Solid(const double* bt, int ncb){
+	assert(ncb == NCoupledBnd);	
+	for(int i=0;i!=ncb;++i){
+		assert(regionMap[Bnd[i].rid].type1==1 &&
+			regionMap[Bnd[i].rid].type2 ==2);//coupled boundary
+
+		BFluidTem[i] = bt[i]; //
+	}	
+}
+
+
+void HeatConductionSolver::coupledBoundCommunicationSolid2Fluid(BoundaryData* bnd,int ncb){
+	assert(ncb == NCoupledBnd);	
+	Gradient ( Tn, BTem,  dPhidX );
+	double dxc[3];
+	for(int i=0;i!=ncb;++i){
+		assert(regionMap[Bnd[i].rid].type1==1 &&
+			regionMap[Bnd[i].rid].type2 ==2);//coupled boundary
+
+		int iface = Bnd[i].face;
+		int icell = Face[iface].cell1;
+		vec_minus( dxc, Face[iface].x, Cell[icell].x, 3 );
+
+		double dtdn = dPhidX[icell][0] * dxc[0] +
+			   		  dPhidX[icell][1] * dxc[1] +
+				      dPhidX[icell][2] * dxc[2];
+
+		bnd[i].q =  diffCoef[icell] * dtdn;// apply 2nd boudnary condition on fluid field;
+	}
+};
+
+
 HeatConductionSolver::HeatConductionSolver():
+	URF(1.0),
 	Tn(NULL),
 	Rn(NULL),
 	diffCoef(NULL),
 	dPhidX(NULL),
 	Tnp(NULL),
 	Tnp2(NULL),
-	BTem(NULL)
+	BTem(NULL),
+	BFluidTem(NULL)
 {}
 HeatConductionSolver::HeatConductionSolver(CycasSolver& ori):
 	CycasSolver(ori),
+	URF(1.0),
 	Tn(NULL),
 	Rn(NULL),
 	diffCoef(NULL),
 	dPhidX(NULL),
 	Tnp(NULL),
 	Tnp2(NULL),
-	BTem(NULL)
+	BTem(NULL),
+	BFluidTem(NULL)
 {}
 HeatConductionSolver::~HeatConductionSolver()
 {
 	// output the result before error
 	// Output2Tecplot ( );
-
 	// delete variables
 	delete [] Tn;
 	delete [] Rn;
@@ -419,6 +434,7 @@ HeatConductionSolver::~HeatConductionSolver()
 	delete_Array2D( dPhidX,Ncel,3 );
 
 	delete [] BTem;
+	delete [] BFluidTem;
 
 
     V_Destr ( &bs );

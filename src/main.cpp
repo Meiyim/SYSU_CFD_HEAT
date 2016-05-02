@@ -14,6 +14,7 @@ int main( int argc, char *argv[] )
 	nsSolver->printer->printStarter();
 	
 	// read mesh
+	preProcess->parseCommandLine(argc,argv);
 	preProcess->ReadParamFile(nsSolver);
 	preProcess->ReadGridFile();
 	// construct faces, compute geometry related info
@@ -26,6 +27,8 @@ int main( int argc, char *argv[] )
 
 	// init flow field
 	nsSolver->InitFlowField();
+
+	delete preProcess;
 
 	//------------ MAIN CFD SOLVE -----------//
 	nsSolver->NSSolve();	

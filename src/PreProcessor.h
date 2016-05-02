@@ -10,17 +10,20 @@ class PreProcessor{
     FaceData     *Face;
     CellData     *Cell;
     BoundaryData *Bnd;  
-   	char   GridFileName[100];
+
+    char   GridFileName[100];
+    std::string paramFileName;
 
     //parameters
     bool solve3DHeatConduction;
 public:
     PreProcessor():
         solve3DHeatConduction(false),
-        GridFileName("param.in")
+        paramFileName("param.in")
     {}
 	//param
-   	void ReadParamFile   (NavierStokesSolver* ns);
+    void parseCommandLine(int argc, char** argv);
+   void ReadParamFile   (NavierStokesSolver* ns);
 	// Geometry
     int  ReadGridFile    ( );
 	void OutputGrid      ( );

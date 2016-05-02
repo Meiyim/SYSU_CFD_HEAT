@@ -49,8 +49,7 @@ void NavierStokesSolver::SetBCVelocity( double *br, double *bu,double *bv,double
 			break;
 
 		default:
-			cout<<"no such boundary type"<<i<<" "<<rid<<endl;
-			exit(0);
+			errorHandler->fatalRuntimeError("no such boundary type in velocity bc:",regionMap[rid].type1);
 		}
 	}
 
@@ -61,11 +60,11 @@ void NavierStokesSolver::SetBCVelocity( double *br, double *bu,double *bv,double
 	{
 		rid   = Bnd[i].rid;
 		iface = Bnd[i].face;
-		if( rid==2 )
+		if( regionMap[rid].type1==2 )
 			massflowin  += br[i]*( bu[i]*Face[iface].n[0] +
 					       bv[i]*Face[iface].n[1] +
 			     		       bw[i]*Face[iface].n[2] );
-		else if( rid==3 ){
+		else if( regionMap[rid].type1==3 ){
 			massflowout += br[i]*( bu[i]*Face[iface].n[0] +
 					       bv[i]*Face[iface].n[1] +
 					       bw[i]*Face[iface].n[2] );
@@ -79,7 +78,7 @@ void NavierStokesSolver::SetBCVelocity( double *br, double *bu,double *bv,double
 			rid   = Bnd[i].rid;
 			iface = Bnd[i].face;
 			ic    = Face[iface].cell1;
-			if( rid==3 )
+			if( regionMap[rid].type1==3 )
 			{
 				BU[iface] *= rate ;
 				BV[iface] *= rate ;
@@ -95,7 +94,7 @@ void NavierStokesSolver::SetBCVelocity( double *br, double *bu,double *bv,double
 			rid   = Bnd[i].rid;
 			iface = Bnd[i].face;
 			ic    = Face[iface].cell1;
-			if( rid==3 )
+			if( regionMap[rid].type1==3 )
 			{
 				BU[iface] += rate * Face[iface].n[0]/Face[iface].area;
 				BV[iface] += rate * Face[iface].n[1]/Face[iface].area;
@@ -160,23 +159,40 @@ void NavierStokesSolver::SetBCDeltaP(double*bp, double *dp)
 	}
 }
 
-void NavierStokesSolver::SetBCTemperature( double *bt )
+void NavierStokesSolver::SetBCTemperature( double *bt, double* diffCoef)
 {
+	/*
+	if(Solve3DHeatConduction){
+		HeatConductionSolver* ht = dynamic_cast<HeatConductionSolver*> (physicalModule["3dHeatConduction"]);
+	}	
+	*/
+	//update btem
+	//ht->coupledBoundCommunicationSolid2Fluid(Bnd,NCoupledBnd);//update coupled boundary flux
 	int    i,rid,iface,ic;
 	for( i=0; i<Nbnd; i++ )
 	{
 		rid   = Bnd[i].rid;
 		iface = Bnd[i].face;
 		ic    = Face[iface].cell1;
-		switch( regionMap[rid].type1 ){
+		BdRegion& reg = regionMap[rid];
+		switch( reg.type1 ){
 		case(1):  // wall
-			assert(regionMap[rid].type2!=1); //given flux is not implement for fluid yet.
-											 //type2 == 0 given T
-											 //type2 == 2 coupled 
-			bt[i]= regionMap[rid].fixedValue;
+			if(reg.type2==0){//given T
+				//remain initial value;
+			}else if(reg.type2==1){ //given flux
+     		   	bt[i] = Tn[ic] - Bnd[i].q / (diffCoef[ic] *Face[iface].rlencos );// given flux // by CHENXUYI
+     		   	//explicitly changed 2kind_bnd to 1kind_bnd
+				//bt[i] is to cal gradient
+				//flux remain initial
+			}else if(reg.type2==2){//coupled  // deel with 2nd_boundary in fluid field
+     		   	bt[i] = Tn[ic] - Bnd[i].q / (diffCoef[ic] *Face[iface].rlencos );// given flux // by CHENXUYI
+				//update boudary flux
+			}else{
+				assert(false);	
+			}
 			break;
 		case(2):  // inlet
-			bt[i]= regionMap[rid].initvalues[5];
+			//remain initual value;
 			break;
 		case(3):
 			bt[i]= Tn[ic];

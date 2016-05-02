@@ -19,10 +19,9 @@ int PreProcessor::ReadGridFile( )
 		// bndType[10]={4,2,3,1,4,4,0}; // bndType change the tag in gmsh file to navier_bc types ( 4 types currently )
 
 	file.open (GridFileName);
-    if( ! file.is_open() )
-	{
-        errorHandler->fatalRuntimeError("grid file not found",GridFileName);
-	}
+    if( ! file.is_open() ){
+                    errorHandler->fatalRuntimeError("grid file not found",GridFileName);
+    }
     // Skip some lines
     file >> line;
     file >> line;
@@ -84,13 +83,13 @@ int PreProcessor::ReadGridFile( )
                 Bnd[Nbnd].vertices[1]= vertices[1];
                 Bnd[Nbnd].vertices[2]= vertices[2];
                 Bnd[Nbnd].vertices[3]= vertices[3];
-            }
-			else
-			{
-				cout<<"boundary type is not correct."<<elem_type<<endl;
-				abort();
-			}
-			Nbnd ++ ;
+               }
+	else
+	{
+		cout<<"boundary type is not correct."<<elem_type<<endl;
+		abort();
+	}
+	Nbnd ++ ;
         }
         else if( elem_type==4 || elem_type==5 ||  // Tetrahedral/Hexa/Prism/Pyramid cell
                  elem_type==6 || elem_type==7 )
@@ -194,16 +193,16 @@ int PreProcessor::CreateFaces( )
 
     cout<<"begin faces construction ... ";
     Nfac = 0;
-    Face = new FaceData;//alloc before realloc
+    Face = new FaceData[Nbnd];//alloc before realloc
     // first boundary faces
     for( i=0; i<Nbnd; i++ )
     {
-		Face = (FaceData*)realloc( Face, (Nfac+1)*sizeof(FaceData) );
         Bnd[i].face = Nfac;
         for( j=0;j<4;j++ )
             Face[Nfac].vertices[j] = Bnd[i].vertices[j];
         Face[Nfac].bnd     = i   ;  // bnd(i)%rid
-        Face[Nfac].cell2   = -10 ;  // cell1 is not known, set in FindFace
+        Face[Nfac].cell1   = -10 ;  // cell1 is not known, set in FindFace
+        Face[Nfac].cell2   = -10 ;  
         for( j=0;j<4;j++ )
         {
             id = Face[Nfac].vertices[j];
@@ -266,7 +265,7 @@ void PreProcessor::FindFace( int ic, int n1, int n2, int n3, int n4, int &nf,
 
     if( fid<0 )
     {
-		Face = (FaceData*)realloc( Face, (Nfac+1)*sizeof(FaceData) );
+        Face = (FaceData*)realloc( Face, (Nfac+1)*sizeof(FaceData) );
         Face[nf].vertices[0]= n1;
         Face[nf].vertices[1]= n2;
         Face[nf].vertices[2]= n3;
@@ -284,11 +283,17 @@ void PreProcessor::FindFace( int ic, int n1, int n2, int n3, int n4, int &nf,
     }
     else
     {
-        if( Face[fid].bnd >= 0 )    // boundary face
-            Face[fid].cell1  = ic;
-        else                       // inner face
+        if( Face[fid].bnd >= 0 ){   // boundary face
+               if( Face[fid].cell1 == -10 ){
+                        Face[fid].cell1 = ic;
+               }else if(Face[fid].cell2 == -10){
+                        Face[fid].cell2 = ic;
+               }else{
+                    assert(false); 
+               }
+        }else{ //inner face
             Face[fid].cell2  = ic;
-        
+        }
         Cell[ic].face[ Cell[ic].nface++ ] = fid;
     }
 }
@@ -422,7 +427,7 @@ int PreProcessor::CellFaceInfo()
             xv8[j] = Vert[ Cell[i].vertices[7] ] [j];
         }
 
-		// cell-gravity
+        // cell-gravity
         // Hexa is divided into 6 Tets
         V1= TetVolum(xv1,xv2,xv4,xv6);
         V2= TetVolum(xv1,xv5,xv4,xv6);
@@ -477,7 +482,7 @@ int PreProcessor::CellFaceInfo()
         }
     }
 
-	//-- Face[].rlencos
+     //-- Face[].rlencos
 	for( i=0; i<Nfac; i++ )
 	{
 		ic1= Face[i].cell1;
@@ -519,6 +524,7 @@ int PreProcessor::CellFaceInfo()
 //------this function is usded when solve3DHeatConduction---------
 // input
 // output
+// not a optimized implementation, but, whatever, who the fxxk cares
 //----------------------------------------------------------------
 int PreProcessor::findCoupledBoundary(int* new2Old,int coupledBoundId, int nc,//input
             CellData** retCells,FaceData** retFaces,BoundaryData** retBnd,double*** retVert,
@@ -584,31 +590,44 @@ int PreProcessor::findCoupledBoundary(int* new2Old,int coupledBoundId, int nc,//
         }
     }
 
-    for(int i=0;i!=nf;++i){ //create coupled bound
-        if(_faces[i].cell2<0 && _faces[i].bnd < 0){
+    for(int i=0;i!=Nbnd;++i){
+        int iface = Bnd[i].face;
+        if(Face[iface].cell1 >0 && Face[iface].cell2 >0){//coupled Boundary
             BoundaryData toPush;
+            assert(old2NewF.find(iface)!=old2NewF.end());
+            int newFace = old2NewF[iface];
             for(int k=0;k!=4;++k){
-                toPush.vertices[k] = _faces[i].vertices[k];
+                toPush.vertices [k] = _faces[ newFace] .vertices[k];
             }
-            toPush.face = i;
+            toPush.face = newFace;
             toPush.rid = coupledBoundId;
             _bounds.push_back(toPush);
-
-            _faces[i].bnd = nb;
+            _faces[newFace].bnd = nb;
             nb++;
         }
+
     }
 
     int ncb = nb;
-    for(int i=0;i!=nf;++i){
-        if(_faces[i].cell2<0 && _faces[i].bnd > 0){
-            BoundaryData toPush = Bnd[_faces[i].bnd];
-            toPush.face = i;
+    printf("%d coupled boundary founded\nl",ncb);
+    for(int i=0;i!=Nbnd;++i){
+        int iface = Bnd[i].face;
+        if(Face[iface].cell1 > 0 && Face[iface].cell2 < 0){
+            BoundaryData toPush;
+            assert(old2NewF.find(iface)!=old2NewF.end());
+            int newFace  = old2NewF[iface];
+            for(int k=0;k!=4;++k){
+                toPush.vertices[k] = _faces[newFace].vertices[k];
+            }
+            toPush.face = newFace;
+            toPush.rid = Bnd[i].rid;
             _bounds.push_back(toPush);
-            _faces[i].bnd = nb;
+            _faces[newFace].bnd = nb;
             nb++;
         }
     }
+    printf("%d  boundary  in total\n",nb);
+
 
     //compress size and return;
     retnc = nc;
@@ -693,6 +712,7 @@ int PreProcessor::buildSolver(NavierStokesSolver* ns){
             }
         } 
 
+        printf("found fluid cell %d, solid cell %d\n",nc,ncS);
         findCoupledBoundary(new2Old, coupledBoundId, nc,
                 &ns->Cell, &ns->Face, &ns->Bnd, &ns->Vert,
                 ns->Ncel,ns->Nfac,ns->Nbnd,ns->NCoupledBnd,ns->Nvrt

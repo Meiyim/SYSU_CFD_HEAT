@@ -18,58 +18,19 @@ int NavierStokesSolver::CalculatePressure( )
 		Q_Constr(&Ap,   "matrix",    Ncel, False, Rowws, Normal, True);
 
 	// Init value for iteration
-    V_SetAllCmp(&xsol, 0.);
-    // Build matrix
-    BuildPressureMatrix( );
-    // Solve pressure Poisson equation. Symmetric sparse linear equations solver
+	 V_SetAllCmp(&xsol, 0.);
+    	// Build matrix
+    	BuildPressureMatrix( );
+    	// Solve pressure Poisson equation. Symmetric sparse linear equations solver
+   
 
 	if( DensityModel==0 )
 		SolveLinearEqu( CGIter,    &Ap, &xsol, &bp, 1000, SSORPrecond, 1.3, 1.e-6, &pIter, &pIterRes );
 	else
 		SolveLinearEqu( GMRESIter, &Ap, &xsol, &bp, 1000, SSORPrecond, 1.3, 1.e-6, &pIter, &pIterRes );
 	if( pIterRes>1. ){
-		cout<<"Pressure iteration cannot converge! "<<pIter<<" "<<pIterRes<<endl;
-		exit(0);
+		errorHandler->fatalRuntimeError("Pressure iteration cannot onverge, res:",pIterRes);
 	}
-	/*
-	double matnorm = 0.0;
-	for(int i=0;i!=Ncel;++i){
-		for(int j=0;j!=Ap.Len[i+1];++j){
-			double var = (Ap.El[i+1][j].Val)*(Ap.El[i+1][j].Val);
-			if(Ap.El[i+1][j].Pos != i){
-				var*=2;
-			}
-			matnorm += var;
-		}
-	}
-	*/
-	/*
-	ofstream of;
-	of.open("Ap.dat");
-	of<<"Ncel:"<<Ncel<<endl;
-	size_t counter = 0;
-	for(int i=0;i!=Ncel;++i){
-		of<<i<<" : ";
-		for(int j=0;j!=Ap.Len[i+1];++j){
-			of<<Ap.El[i+1][j].Pos-1<<" "<<Ap.El[i+1][j].Val<<" ";
-		}
-		of<<" ; "<<bp.Cmp[i+1]<<endl;
-	}
-	of.close();
-	*/
-	/*
-	double bpnorm = l2Norm_V(&bp);
-	printf("bpnorm %e\n",bpnorm);
-
-	double pnorm = l2Norm_V(&xsol);
-	printf("pnorm %e\n",pnorm);
-	
-	printf("piter %d,res %e\n",pIter,pIterRes);
-	*/
-
-
-	
-	
     // update other variables
 	SetBCDeltaP( BPre, &xsol.Cmp[1] );
     	Gradient   ( &xsol.Cmp[1], BPre, dPdX );  // note the first parameter
@@ -103,8 +64,6 @@ int NavierStokesSolver::CalculatePressure( )
 	checkArray(Vn,Ncel,"V'");
 	checkArray(Wn,Ncel,"W'");
 	*/
-
-
 	// correct face normal velocity to satify the mass balance equ
 	SetBCVelocity(BRo,BU,BV,BW);
 	CorrectRUFace2( &xsol.Cmp[1] );
@@ -117,18 +76,18 @@ int NavierStokesSolver::CalculatePressure( )
 
 void NavierStokesSolver::BuildPressureMatrix( ) //no second pressure correctio is used in this funtion .CXY e.g. equation 8.62
 {
-    int i,j, nj,in, cn[7], iface,bnd,boundType;
-    double Acn[7], roapf,lambda,lambda2,valcen,bpv,tmp,tmp2,vol, rof,Tf,RUnormal;
+    	int i,j, nj,in, cn[7], iface,bnd,boundType;
+    	double Acn[7], roapf,lambda,lambda2,valcen,bpv,tmp,tmp2,vol, rof,Tf,RUnormal;
 
 	SetBCVelocity( BRo,BU,BV,BW );
 	CalRUFace2   ( ); // it doesn't need re-calculation ???
                         //calculated with u*   this is the m*
 
-    for( i=0; i<Ncel; i++ )
-    {
-        valcen = 0.;
+   	 for( i=0; i<Ncel; i++ )
+    	{
+		valcen = 0.;
 		bpv    = 0.;
-        nj     = 0 ;
+		nj     = 0 ;
 
 		// compressible gas, perfect gas
 		// ?? d_ro/d_t = d_p/d_t /(RT) ?? source term and diagonal terms ,how to change?
@@ -137,17 +96,17 @@ void NavierStokesSolver::BuildPressureMatrix( ) //no second pressure correctio i
 			// only Euler, or BDF 2nd can also be used ? Both, I guess
 			valcen += -Cell[i].vol/( dt*Rcpcv*Tn[i] );
 		}
-        for( j=0; j<Cell[i].nface; j++ )
-        {
-            iface= Cell[i].face[j];
+	     	for( j=0; j<Cell[i].nface; j++ )
+	        	{
+	            		iface= Cell[i].face[j];
 			// right hand side
 			if( i==Face[iface].cell1 )
 				bpv += RUFace[iface];
 			else
 				bpv -= RUFace[iface];
 
-            in   = Cell[i].cell[j]; //j-face neighbor cell
-            if( in<0  ){  // ???????????????????
+	            		in   = Cell[i].cell[j]; //j-face neighbor cell
+	            		if( in<0  ){  // ???????????????????
 				if( DensityModel==0 )continue;
 				// DensityModel==1
 				bnd= Face[iface].bnd;
@@ -186,11 +145,11 @@ void NavierStokesSolver::BuildPressureMatrix( ) //no second pressure correctio i
 				// incompressible flow
 				//-- neighbor cell. Since it's symmetric, only consider upper triangle
 				if( DensityModel==0 ){
-				if( in>i ){
-					nj ++ ;
-					Acn[nj] = tmp;
-					cn [nj] = in;
-				}
+					if( in>i ){
+						nj ++ ;
+						Acn[nj] = tmp;
+						cn [nj] = in;
+					}
 				}
 				// compressible correction
 				// perfect gas, density change --> pressure change
@@ -201,7 +160,6 @@ void NavierStokesSolver::BuildPressureMatrix( ) //no second pressure correctio i
 						tmp2     =  -RUnormal/(rof*Rcpcv*Tf); //CXY: addition to diagnal A due to compressible correction
 						valcen  += tmp2;
 					}
-
 					nj ++ ;
 					Acn[nj] = tmp ;
 					if( RUnormal<0. ){
@@ -211,20 +169,19 @@ void NavierStokesSolver::BuildPressureMatrix( ) //no second pressure correctio i
 					cn [nj] = in;
 				}
 			}
-        }
-
-        // use laspack library to prepare the sparse matrix
+		}	
+	       	// use laspack library to prepare the sparse matrix
 		// (i+1)th row, nj+1 non-zero values
-        Q_SetLen  ( &Ap, i+1, nj+1 );
+	       	 Q_SetLen  ( &Ap, i+1, nj+1 );
 		// diagonal
 		Q_SetEntry( &Ap, i+1, 0, i+1, valcen );
 		// off-diagonal
 		for( j=1; j<=nj; j++ ){
-		Q_SetEntry( &Ap, i+1, j, cn[j]+1, Acn[j] );
+			Q_SetEntry( &Ap, i+1, j, cn[j]+1, Acn[j] );
 		}
 		// right hand side
-        bp.Cmp[i+1]= bpv;
-    }
+   	    	 bp.Cmp[i+1]= bpv;
+   	 }
 }
 
 void NavierStokesSolver::CorrectRUFace2( double *dp )
