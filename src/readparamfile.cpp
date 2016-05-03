@@ -137,6 +137,8 @@ void PreProcessor::ReadParamFile(NavierStokesSolver* ns)
 		}
 		else if( strcmp(keyw[0],"initflow")==0 )
 		{
+			delete []ns->initvalues;
+			ns->initvalues = new double[ikey];
 			for( i=1; i<=ikey; i++ )
 				ns->initvalues[i-1]= atof( keyw[i] );
 		}
@@ -148,6 +150,9 @@ void PreProcessor::ReadParamFile(NavierStokesSolver* ns)
 			int bid= atoi( keyw[1] );
 			if(ns->regionMap.find(bid)!=ns->regionMap.end()){
 				errorHandler->fatalRuntimeError("repeating bid found",bid);
+			}
+			if(bid == 0 ){
+				errorHandler->fatalRuntimeError("bid == 0 is illegal");
 			}
 			if(      strcmp(keyw[2],"Twall")==0 )
 			{

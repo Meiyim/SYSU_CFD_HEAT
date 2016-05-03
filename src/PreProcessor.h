@@ -29,7 +29,6 @@ public:
 	void OutputGrid      ( );
     int  CreateFaces     ( );
     void FindFace        ( int, int,int,int,int, int&, int*,int** );
-    int  CellFaceInfo    ( );
 
 
     //build solver 

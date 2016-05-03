@@ -20,9 +20,10 @@ int NavierStokesSolver::CalculatePressure( )
 	// Init value for iteration
 	 V_SetAllCmp(&xsol, 0.);
     	// Build matrix
-    	BuildPressureMatrix( );
+    BuildPressureMatrix( );
     	// Solve pressure Poisson equation. Symmetric sparse linear equations solver
-   
+
+    //CHECK_ARRAY(bp.Cmp+1,Ncel);
 
 	if( DensityModel==0 )
 		SolveLinearEqu( CGIter,    &Ap, &xsol, &bp, 1000, SSORPrecond, 1.3, 1.e-6, &pIter, &pIterRes );
@@ -76,15 +77,16 @@ int NavierStokesSolver::CalculatePressure( )
 
 void NavierStokesSolver::BuildPressureMatrix( ) //no second pressure correctio is used in this funtion .CXY e.g. equation 8.62
 {
-    	int i,j, nj,in, cn[7], iface,bnd,boundType;
-    	double Acn[7], roapf,lambda,lambda2,valcen,bpv,tmp,tmp2,vol, rof,Tf,RUnormal;
+    int i,j, nj,in, cn[7], iface,bnd,boundType;
+    double Acn[7], roapf,lambda,lambda2,valcen,bpv,tmp,tmp2,vol, rof,Tf,RUnormal;
 
 	SetBCVelocity( BRo,BU,BV,BW );
 	CalRUFace2   ( ); // it doesn't need re-calculation ???
                         //calculated with u*   this is the m*
 
-   	 for( i=0; i<Ncel; i++ )
-    	{
+
+   	for( i=0; i<Ncel; i++ )
+    {
 		valcen = 0.;
 		bpv    = 0.;
 		nj     = 0 ;
@@ -96,17 +98,25 @@ void NavierStokesSolver::BuildPressureMatrix( ) //no second pressure correctio i
 			// only Euler, or BDF 2nd can also be used ? Both, I guess
 			valcen += -Cell[i].vol/( dt*Rcpcv*Tn[i] );
 		}
-	     	for( j=0; j<Cell[i].nface; j++ )
-	        	{
-	            		iface= Cell[i].face[j];
-			// right hand side
-			if( i==Face[iface].cell1 )
-				bpv += RUFace[iface];
-			else
-				bpv -= RUFace[iface];
 
-	            		in   = Cell[i].cell[j]; //j-face neighbor cell
-	            		if( in<0  ){  // ???????????????????
+	    for( j=0; j<Cell[i].nface; j++ )
+	    {
+	    	iface= Cell[i].face[j];
+			// right hand side
+
+
+			if( i==Face[iface].cell1 ){
+				bpv += RUFace[iface];
+			}
+			else if(i==Face[iface].cell2){
+				bpv -= RUFace[iface];
+			}else{
+				assert(false);	
+			}
+
+
+	        in   = Cell[i].cell[j]; //j-face neighbor cell
+	        if( in<0  ){  // ???????????????????
 				if( DensityModel==0 )continue;
 				// DensityModel==1
 				bnd= Face[iface].bnd;
@@ -135,6 +145,7 @@ void NavierStokesSolver::BuildPressureMatrix( ) //no second pressure correctio i
 					lambda  = 1.-Face[iface].lambda ;
 					RUnormal= -RUFace[iface];
 				}
+
 				lambda2= 1.-lambda;
 				roapf  = Rn[i]*Apr[i]*lambda + Rn[in]*Apr[in]*lambda2;
 				vol    = Cell[i].vol*lambda + Cell[in].vol*lambda2;
@@ -180,8 +191,10 @@ void NavierStokesSolver::BuildPressureMatrix( ) //no second pressure correctio i
 			Q_SetEntry( &Ap, i+1, j, cn[j]+1, Acn[j] );
 		}
 		// right hand side
-   	    	 bp.Cmp[i+1]= bpv;
-   	 }
+   	     bp.Cmp[i+1]= bpv;
+ 	}
+
+
 }
 
 void NavierStokesSolver::CorrectRUFace2( double *dp )

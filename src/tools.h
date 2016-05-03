@@ -75,9 +75,11 @@ class Checker{
 	vector<double> pool;
 public:
 	Checker(string n):varname(n){}
+	
 	void check(double v){
 		pool.push_back(v);
 	}
+
 	void report(){
 		double ret = 0.0;
 		for(auto it=pool.begin();it!=pool.end();++it)

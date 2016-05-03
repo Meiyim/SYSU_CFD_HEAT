@@ -65,7 +65,6 @@ int PreProcessor::ReadGridFile( )
 
         // Some gmsh files have 2 and some have 3 tags
         assert( ntags==2 || ntags==3 );
-  
         if( elem_type==2 || elem_type==3 ) // Boundary, Tri/Quad face
         {
             Bnd = (BoundaryData*) realloc(Bnd,(Nbnd+1)*sizeof(BoundaryData));
@@ -83,13 +82,13 @@ int PreProcessor::ReadGridFile( )
                 Bnd[Nbnd].vertices[1]= vertices[1];
                 Bnd[Nbnd].vertices[2]= vertices[2];
                 Bnd[Nbnd].vertices[3]= vertices[3];
-               }
-	else
-	{
-		cout<<"boundary type is not correct."<<elem_type<<endl;
-		abort();
-	}
-	Nbnd ++ ;
+            }
+        	else
+        	{
+        		cout<<"boundary type is not correct."<<elem_type<<endl;
+        		abort();
+        	}
+        	Nbnd ++ ;
         }
         else if( elem_type==4 || elem_type==5 ||  // Tetrahedral/Hexa/Prism/Pyramid cell
                  elem_type==6 || elem_type==7 )
@@ -195,6 +194,7 @@ int PreProcessor::CreateFaces( )
     Nfac = 0;
     Face = new FaceData[Nbnd];//alloc before realloc
     // first boundary faces
+    cout<<Nbnd<<endl;
     for( i=0; i<Nbnd; i++ )
     {
         Bnd[i].face = Nfac;
@@ -299,227 +299,6 @@ void PreProcessor::FindFace( int ic, int n1, int n2, int n3, int n4, int &nf,
 }
 
 
-/////////////////////////////////////////////////////
-/// Other cell and face information
-///--------------------------------------------------
-
-double Tri3DArea(double x1[], double x2[], double x3[] )
-{
-    double a1,a2,a3, v1[3],v2[3];
-    vec_minus(v1, x2,x1, 3 );
-    vec_minus(v2, x3,x1, 3 );
-    a1=  v1[1]*v2[2] - v1[2]*v2[1];
-    a2= -v1[0]*v2[2] + v1[2]*v2[0];
-    a3=  v1[0]*v2[1] - v1[1]*v2[0];
-    return 0.5 * sqrt( a1*a1 + a2*a2 + a3*a3 );
-}
-double TetVolum(double x1[], double x2[], double x3[], double x4[])
-{
-    double v1[3], dx1[3],dx2[3],dx3[3];
-    vec_minus( dx1, x2, x1, 3);
-    vec_minus( dx2, x3, x1, 3);
-    vec_minus( dx3, x4, x1, 3);
-    vec_cross( v1,  dx1,dx2);
-    return 1./6.*fabs( vec_dot( v1, dx3, 3 ) );
-}
-
-int PreProcessor::CellFaceInfo()
-{
-    int i,j, n1,n2,n3,n4, ic1,ic2,ic, iface,nc,jf,jc;
-    double area1,area2, r1,r2, 
-       xc1[3],xc2[3],xc3[3],xc4[3],xc5[3],xc6[3], dx[3],dx1[3],dx2[3], 
-       xv1[3],xv2[3],xv3[3],xv4[3],xv5[3],xv6[3],xv7[3],xv8[3], 
-       V1,V2,V3,V4,V5,V6;
-
-    // cell ceneter estimation, not final ones
-    for( i=0; i<Ncel; i++ )
-    {
-        for( j=0; j<3; j++ )
-        Cell[i].x[j]=1./8.*( Vert[ Cell[i].vertices[0] ][j] + 
-                             Vert[ Cell[i].vertices[1] ][j] + 
-                             Vert[ Cell[i].vertices[2] ][j] + 
-                             Vert[ Cell[i].vertices[3] ][j] + 
-                             Vert[ Cell[i].vertices[4] ][j] + 
-                             Vert[ Cell[i].vertices[5] ][j] + 
-                             Vert[ Cell[i].vertices[6] ][j] +
-                             Vert[ Cell[i].vertices[7] ][j] );
-    }
-
-    //-- face
-    for( i=0; i<Nfac; i++ )
-    {
-        n1= Face[i].vertices[0];
-        n2= Face[i].vertices[1];
-        n3= Face[i].vertices[2];
-        n4= Face[i].vertices[3];
-
-        // x, area, n, lambda
-        // face center, (gravity center???) I doubt that ???
-        area1 = Tri3DArea( Vert[n1], Vert[n2], Vert[n4] );
-        area2 = Tri3DArea( Vert[n2], Vert[n3], Vert[n4] );
-
-		// face center is bary-center
-        for(j=0;j<3;j++){
-        xc1[j]= 1./3*( Vert[n1][j]+Vert[n2][j]+Vert[n4][j] );
-        xc2[j]= 1./3*( Vert[n2][j]+Vert[n3][j]+Vert[n4][j] );
-        }
-        for(j=0;j<3;j++)
-            Face[i].x[j] = ( area1*xc1[j] + area2*xc2[j] ) / (area1+area2);
-	
-		// face center is bary-center
-		/*  for(j=0;j<3;j++)
-		{
-			if( n3==n4 ) // triangle
-				Face[i].x[j]=1./3.*(Vert[n1][j]+Vert[n2][j]+Vert[n3][j] );
-			else         // quadrilateral
-				Face[i].x[j]=1./4.*(Vert[n1][j]+Vert[n2][j]+Vert[n3][j]+Vert[n4][j]);
-		}  */
-
-        // face normal vector and area
-        vec_minus( dx1, Vert[n1], Vert[n3], 3 ); // dx1= vert[n1] - vert[n3]
-        vec_minus( dx2, Vert[n2], Vert[n4], 3 ); // dx2= vert[n2] - vert[n4]
-        vec_cross( Face[i].n, dx1, dx2 );     // face.n is normal area
-        for( j=0;j<3;j++ )
-            Face[i].n[j] = 0.5 * Face[i].n[j];
-        ic = Face[i].cell1;
-        vec_minus( dx, Face[i].x, Cell[ic].x, 3);
-        if( vec_dot(Face[i].n, dx,3)<0. ){   // normal points from cell1 to cell2
-			for( j=0;j<3;j++ )
-				Face[i].n[j] =  -Face[i].n[j] ;
-        }
-        Face[i].area= vec_len( Face[i].n,3 );
-        if( fabs( (area1+area2-Face[i].area)/Face[i].area )>1.e-4 ){
-            cout<<i<<" area is not correct "<<area1+area2<<" "<<Face[i].area<<endl;
-			cout<<Face[i].x[0]<<" "<<Face[i].x[1]<<" "<<Face[i].x[2]<<endl;
-			cout<<Face[i].vertices[0]<<" "<<Face[i].vertices[1]<<" "
-			    <<Face[i].vertices[2]<<" "<<Face[i].vertices[3]<<endl;
-            exit(0);
-        }
-
-        // face interpolation
-        ic1= Face[i].cell1;
-        ic2= Face[i].cell2;
-		if( ic2>=0 ){
-			vec_minus( dx1, Face[i].x, Cell[ic1].x, 3);
-			vec_minus( dx2, Face[i].x, Cell[ic2].x, 3);
-			r1 = vec_len( dx1,3 );
-			r2 = vec_len( dx2,3 );
-			Face[i].lambda = r2 / (r1+r2); // inverse-distance = (1/r1) / ( 1/r1 + 1/r2 )
-		}
-		else
-			Face[i].lambda = 1.;
-    }
-	
-	
-
-    //-- cell
-    for( i=0; i<Ncel; i++ )
-    {
-        for( j=0; j<3; j++ )
-        {
-            xv1[j] = Vert[ Cell[i].vertices[0] ] [j];
-            xv2[j] = Vert[ Cell[i].vertices[1] ] [j];
-            xv3[j] = Vert[ Cell[i].vertices[2] ] [j];
-            xv4[j] = Vert[ Cell[i].vertices[3] ] [j];
-            xv5[j] = Vert[ Cell[i].vertices[4] ] [j];
-            xv6[j] = Vert[ Cell[i].vertices[5] ] [j];
-            xv7[j] = Vert[ Cell[i].vertices[6] ] [j];
-            xv8[j] = Vert[ Cell[i].vertices[7] ] [j];
-        }
-
-        // cell-gravity
-        // Hexa is divided into 6 Tets
-        V1= TetVolum(xv1,xv2,xv4,xv6);
-        V2= TetVolum(xv1,xv5,xv4,xv6);
-        V3= TetVolum(xv4,xv5,xv8,xv6);
-        V4= TetVolum(xv2,xv3,xv4,xv7);
-        V5= TetVolum(xv2,xv6,xv4,xv7);
-        V6= TetVolum(xv8,xv4,xv6,xv7);
-		Cell[i].vol= V1 + V2 + V3 + V4 + V5 + V6;
-
-        for( j=0; j<3; j++ ){
-            xc1[j]= 0.25*( xv1[j]+xv2[j]+xv4[j]+xv6[j] );
-            xc2[j]= 0.25*( xv1[j]+xv5[j]+xv4[j]+xv6[j] );
-            xc3[j]= 0.25*( xv4[j]+xv5[j]+xv8[j]+xv6[j] );
-            xc4[j]= 0.25*( xv2[j]+xv3[j]+xv4[j]+xv7[j] );
-            xc5[j]= 0.25*( xv2[j]+xv6[j]+xv4[j]+xv7[j] );
-            xc6[j]= 0.25*( xv8[j]+xv4[j]+xv6[j]+xv7[j] );
-        }
-		double Vsum = V1+V2+V3+V4+V5+V6;
-        for( j=0; j<3; j++ )
-            Cell[i].x[j]=1./Vsum*( V1*xc1[j] + V2*xc2[j] +
-                                   V3*xc3[j] + V4*xc4[j] +
-                                   V5*xc5[j] + V6*xc6[j] );
-        if( fabs((Cell[i].vol - (V1+V2+V3+V4+V5+V6))/Cell[i].vol) > 1.e-3 ){
-            cout<< "error in cell volume calculation."<<i<<" "
-				<<Cell[i].vol<<" "<<V1+V2+V3+V4+V5+V6<<endl;
-            exit(0);
-        }
-
-        // neighbored cells
-        for( j=0; j<Cell[i].nface; j++ )
-        {
-            iface = Cell[i].face[j];
-            nc    = Face[iface].cell1;
-            if( nc==i )
-                nc= Face[iface].cell2;
-            Cell[i].cell[j]= nc;
-        }
-    }
-
-    
-    //-- boundary
-    for( i=0; i<Nbnd; i++ )
-    {
-        jf  = Bnd [i ].face  ;
-        jc  = Face[jf].cell1 ;
-        vec_minus( dx, Face[jf].x, Cell[jc].x,3 );
-        Bnd[i].distance =  vec_dot(dx, Face[jf].n, 3) / Face[jf].area;
-        if( Bnd[i].distance<0. )
-        {
-            cout<< "wall distance is negative." << i ;
-            exit(0);
-        }
-    }
-
-     //-- Face[].rlencos
-	for( i=0; i<Nfac; i++ )
-	{
-		ic1= Face[i].cell1;
-		ic2= Face[i].cell2;
-		if( ic2<0 )
-		{
-			vec_minus( dx,Face[i].x,Cell[ic1].x,3 );
-			// Face[i].rlencos= Face[i].area/vec_len(dx,3);
-			Face[i].rlencos = Face[i].area / (vec_dot( dx,Face[i].n,3 )/Face[i].area);
-		}
-		else
-		{
-			vec_minus( dx,Cell[ic2].x,Cell[ic1].x,3 );
-			// Face[i].rlencos= Face[i].area/vec_len(dx,3);
-			Face[i].rlencos = Face[i].area / (vec_dot( dx,Face[i].n,3 )/Face[i].area);
-		}
-
-		// left and right auxiliary points Xpac, Xnac
-		if( ic2>=0 ){
-		double dx[3], ss;
-		vec_minus( dx, Face[i].x, Cell[ic1].x, 3);
-		ss = vec_dot(dx,Face[i].n,3)/ Face[i].area;
-		for( j=0; j<3; j++ )
-			dx[j] = ss * Face[i].n[j]/Face[i].area;
-		vec_minus( Face[i].Xpac, Face[i].x, dx, 3);
-
-		vec_minus( dx, Face[i].x, Cell[ic2].x, 3);
-		ss = vec_dot(dx,Face[i].n,3)/ Face[i].area;
-		for( j=0; j<3; j++ )
-			dx[j] = ss * Face[i].n[j]/Face[i].area;
-		vec_minus( Face[i].Xnac, Face[i].x, dx, 3);
-		}
-	}
-
-
-    return 1;
-}
 
 //------this function is usded when solve3DHeatConduction---------
 // input
@@ -556,6 +335,8 @@ int PreProcessor::findCoupledBoundary(int* new2Old,int coupledBoundId, int nc,//
             }
         }
     }
+
+
     for(int i=0;i!=nc;++i){//create face
         for(int j=0;j!=_cells[i].nface;++j){
             int iface = _cells[i].face[j];
@@ -577,6 +358,9 @@ int PreProcessor::findCoupledBoundary(int* new2Old,int coupledBoundId, int nc,//
             }
         }
     }
+
+
+    /*
     for(int i=0;i!=nc;++i){//config neighbouring
         for(int j=0;j!=_cells[i].nface;++j){
             int iface = _cells[i].face[j];//local
@@ -589,43 +373,36 @@ int PreProcessor::findCoupledBoundary(int* new2Old,int coupledBoundId, int nc,//
             }
         }
     }
+    */
 
-    for(int i=0;i!=Nbnd;++i){
-        int iface = Bnd[i].face;
-        if(Face[iface].cell1 >0 && Face[iface].cell2 >0){//coupled Boundary
-            BoundaryData toPush;
-            assert(old2NewF.find(iface)!=old2NewF.end());
-            int newFace = old2NewF[iface];
-            for(int k=0;k!=4;++k){
-                toPush.vertices [k] = _faces[ newFace] .vertices[k];
-            }
-            toPush.face = newFace;
-            toPush.rid = coupledBoundId;
+
+
+    for(int i=0;i!=nf;++i){
+        if(_faces[i].cell2<0 && _faces[i].bnd >= 0){
+            BoundaryData toPush = Bnd[_faces[i].bnd];
+            toPush.face = i;
             _bounds.push_back(toPush);
-            _faces[newFace].bnd = nb;
+            _faces[i].bnd = nb;
             nb++;
         }
-
     }
 
     int ncb = nb;
-    printf("%d coupled boundary founded\nl",ncb);
-    for(int i=0;i!=Nbnd;++i){
-        int iface = Bnd[i].face;
-        if(Face[iface].cell1 > 0 && Face[iface].cell2 < 0){
+    for(int i=0;i!=nf;++i){ //create coupled bound
+        if(_faces[i].cell2<0 && _faces[i].bnd < 0){
             BoundaryData toPush;
-            assert(old2NewF.find(iface)!=old2NewF.end());
-            int newFace  = old2NewF[iface];
             for(int k=0;k!=4;++k){
-                toPush.vertices[k] = _faces[newFace].vertices[k];
+                toPush.vertices[k] = _faces[i].vertices[k];
             }
-            toPush.face = newFace;
-            toPush.rid = Bnd[i].rid;
+            toPush.face = i;
+            toPush.rid = coupledBoundId;
             _bounds.push_back(toPush);
-            _faces[newFace].bnd = nb;
+
+            _faces[i].bnd = nb;
             nb++;
         }
     }
+    printf("%d coupled boundary founded\n",nb - ncb);
     printf("%d  boundary  in total\n",nb);
 
 

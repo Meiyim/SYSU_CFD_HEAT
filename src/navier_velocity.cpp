@@ -19,10 +19,12 @@ int NavierStokesSolver::CalculateVelocity( )
 	Q_Constr(&As,   "matrixU",   Ncel, False, Rowws, Normal, True);
     	BuildVelocityMatrix( );
 
+
 	// solve U
 	for( i=0; i<Ncel; i++ ) 
 		xsol.Cmp[i+1]= Un[i];
 	SolveLinearEqu( GMRESIter, &As, &xsol, &bu, 500, SSORPrecond, 1.2, 1.e-8, &Iter, &IterRes );
+
 	
 	if( Iter>=500 && IterRes>1.e-8 ) errorHandler->fatalRuntimeError( "W cannot converge, res:",IterRes );
 
@@ -55,6 +57,11 @@ int NavierStokesSolver::CalculateVelocity( )
 		Wn[i] = xsol.Cmp[i+1];
 	}
 
+/*
+    CHECK_ARRAY(Un,Ncel);
+    CHECK_ARRAY(Vn,Ncel);
+    CHECK_ARRAY(Wn,Ncel);
+*/
 	//double wnorm = l2Norm_V(&xsol);
 
 /*
@@ -64,14 +71,6 @@ int NavierStokesSolver::CalculateVelocity( )
 */
 
 	Q_Destr ( &As );
-
-	/*
-	printf("unorm %e\n",unorm);
-	printf("vnorm %e\n",vnorm);
-	printf("wnorm %e\n",wnorm);
-	*/
-
-
 	return 0;
 }
 
@@ -439,4 +438,5 @@ void NavierStokesSolver::CalRUFace2( )
 			RUFace[i] -= rf*Face[i].area *aprf/d12*vol *( (P2-P1) - dpn );
 		}
 	}
+
 }

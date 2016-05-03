@@ -1,27 +1,41 @@
-gridfile, ht.msh
+// gridfile, grid file name
+gridfile, untitled.msh
+3dheatconduction
 // transient, dt, totaltime, Euler/Dual
 // transient, 0.1, 500., Dual
-steady, 500, 1.e-7
+// steady, Maximum iteration, residual
+
+steady, 500, 1.e-6
+
+// energy, on/off
 energy, on
 density, 0
 turbulence, no
-PressureRef, 101325.
+PressureRef, 101325
 
+// relaxation factor, uvw, p, scalar(T and species)
 relaxation, 0.4, 0.2, 0.8
-limiter, no
-
-//global initial condition
+limiter, WENO
 // initflow, u,v,w,ro,T,laminar viscosity, turbulence kinetic, turbulence dissipation
-initflow, 1., 0., 0., 1.2, 298., 1.e-4, 1.e-2, 1.
-
-// boundary condition
+//------ boundary condition ------
 // bound, id from gmsh boundary, type, parameters
-bound, 1, inlet, 1.,0.,0.,0., 1.2,298.
+//inlet: u, v, w, p r, t,
+bound, 1, inlet, 0., -1., 0., 0., 1.2, 298.
 bound, 2, outlet, 0.
-bound, 3, Twall, 333.
+bound, 3, Hwall, 0.
 bound, 4, sym
-bound, 5, sym
-bound, 0, sym
-
+volumn, 5, fluid, hotfluid, 0., -1., 0., 1.2, 298., 1.e-4, 1.e-2, 1.
+//volumn, 6, fluid, hotfluid, 0., -1., 0., 1.2, 298., 1.e-4, 1.e-2, 1.
+volumn, 6, solid,  298, 4, 0.58
 
 output, 100
+
+//$PhysicalNames
+//6
+//2 1 "fluidIn"
+//2 2 "fluidOut"
+//2 3 "wall"
+//2 4 "sym"
+//3 5 "fluid"
+//3 6 "solid"
+//$EndPhysicalNames

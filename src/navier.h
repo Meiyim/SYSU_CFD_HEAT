@@ -18,6 +18,7 @@ public:
     
 	size_t outputCounter;
 	TerminalPrinter* printer;
+	std::ofstream totFile;
 
 	//Physical module
 	map<std::string,CycasSolver* > physicalModule;
@@ -43,7 +44,7 @@ public:
     // --- post process
     int    noutput,outputformat;
     //--- global flow field initial
-    double initvalues[20];
+    double* initvalues;
 
 
     // physical variables at cell center
@@ -79,6 +80,8 @@ public:
 	virtual void SaveTransientOldData( );
     virtual int solve(){return 0;}; //NS_Solver dont need this
     virtual double getResidule() { return 0.0;};  //NS_Solver dont need this
+
+    virtual int CellFaceInfo();
 
 // Fluid calculation
     void NSSolve ( );
@@ -116,6 +119,7 @@ public:
 	//PostProcess
 	bool shouldPostProcess(int,int,double);
 	void Output();
+	void VolumnAverage(double t, int outIter);
 
 
 private:

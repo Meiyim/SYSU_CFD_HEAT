@@ -82,6 +82,8 @@ void NavierStokesSolver::NSSolve( )
 		
 		/*-----------record,tot file, restart file, etc.----------*/
 
+		VolumnAverage(cur_time,iter);
+
 		if(cur_time >= total_time){
 			break;
 		}else{//time advance
@@ -115,6 +117,7 @@ void NavierStokesSolver::InitFlowField( )
 {
 	int i;
 
+	if(initvalues!=NULL)
 	for(i =0;i!=Ncel;++i){
 		double* initvalues = this->initvalues; //global initial
 		Un[i] = initvalues[0];
@@ -135,11 +138,10 @@ void NavierStokesSolver::InitFlowField( )
 		}
 	}
 
-/*
 	for( i=0; i<Ncel; i++ )
 	{
 		int rid = Cell[i].rid; //volumn initial
-		//assert(regionMap[rid].type1==5&&regionMap[rid].type2==0);//fluid
+		assert(regionMap[rid].type1==5&&regionMap[rid].type2==0);//fluid
 		double* initvalues = regionMap[rid].initvalues;
 		Un[i] = initvalues[0];
 		Vn[i] = initvalues[1];
@@ -157,7 +159,7 @@ void NavierStokesSolver::InitFlowField( )
 			VisTur[i]= Rn[i]*TurKEpsilonVar::Cmu * TE[i]*TE[i]/(ED[i]+SMALL);
 		}
 	}
-*/
+
 
 	for(i=0;i!=Nbnd;++i){
 		BdRegion& reg = regionMap[Bnd[i].rid];
@@ -166,10 +168,11 @@ void NavierStokesSolver::InitFlowField( )
 				BTem[i] = reg.fixedValue;
 			}else if(reg.type2 == 1){
 				Bnd[i].q = reg.fixedValue;
+			}else if(reg.type2 == 2){ //coupled bounday
+				Bnd[i].q = 0.0;
 			}
 		}else if(reg.type1==2){//inlet
 			BTem[i]= reg.initvalues[5];
-			printf("init%e\n",BTem[i]);
 		}else if(reg.type1==4){//sym
 	 		Bnd[i].q =0.0;
 		}
@@ -240,6 +243,25 @@ void NavierStokesSolver::SaveTransientOldData( )
 	}
 }
 
+void NavierStokesSolver::VolumnAverage(double t, int outIter){
+	int i;
+	double volave[10]={0.},vol,   // ro,u,w,w,p,t
+	       sumvol = 0.;
+	for( i=0; i<Ncel; i++ )
+	{
+		vol = Cell[i].vol;
+		sumvol += vol;
+		volave[0] += Rn[i] * vol;
+		volave[1] += Pn[i] * vol;
+		volave[2] += Tn[i] * vol;
+	}
+	for( i=0; i<=2; i++ )
+		volave[i] /= sumvol;
+
+	char temp[256];	
+	sprintf(temp,"%20e %20d %20e %20e %20e\n",t,outIter,volave[0],volave[1],volave[2]);
+	totFile<<temp;
+}
 
 
 void NavierStokesSolver::Output(){
@@ -322,9 +344,21 @@ void NavierStokesSolver::Output2Tecplot(std::ofstream& of,int nvar)
 }
 
 
+//geometry
+int NavierStokesSolver::CellFaceInfo(){
+	CycasSolver::CellFaceInfo();
+	for(map<string,CycasSolver*>::iterator iter = physicalModule.begin();
+	    iter!=physicalModule.end(); ++iter){
+		iter->second->CellFaceInfo();
+	}
+}
+
+
+//constructoros
 NavierStokesSolver::NavierStokesSolver():
 	outputCounter(0),
 	printer(new TerminalPrinter),
+	totFile("tot.dat"),
 	TurModel(0),
 	DensityModel(0),
 	SolveEnergy(false),
@@ -340,6 +374,7 @@ NavierStokesSolver::NavierStokesSolver():
     total_time(0.0),
     ResidualSteady(1.e-6),
     noutput(1),
+    initvalues(NULL),
     outputformat(0),
 
 	gama(1.4),
@@ -378,6 +413,10 @@ NavierStokesSolver::NavierStokesSolver():
 	URF[5]= 0.8;  // k
 	URF[6]= 0.8;  // e
 	URF[7]= 0.8;  // scalar
+
+	char temp[256];
+	sprintf(temp,"%20s %20s %20s %20s %20s\n","time","outIter","Ro","P","T");
+	totFile<<temp;
 }
 
 
@@ -393,6 +432,9 @@ NavierStokesSolver::~NavierStokesSolver()
 			delete iter->second;
 	}
 	delete printer;
+	totFile.close();
+
+	delete []initvalues;
 
    	delete [] Rn;
 	delete [] Un;

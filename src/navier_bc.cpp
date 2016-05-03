@@ -29,6 +29,7 @@ void NavierStokesSolver::SetBCVelocity( double *br, double *bu,double *bv,double
 			bu[i]= initvalues[0];
 			bv[i]= initvalues[1];
 			bw[i]= initvalues[2];
+
 			// if( DensityModel==1 ) br[i]= PressureReference/(Rcpcv*298.);
 			break;
 		case(3):  // outlet
@@ -80,9 +81,10 @@ void NavierStokesSolver::SetBCVelocity( double *br, double *bu,double *bv,double
 			ic    = Face[iface].cell1;
 			if( regionMap[rid].type1==3 )
 			{
-				BU[iface] *= rate ;
-				BV[iface] *= rate ;
-				BW[iface] *= rate ;
+				bu[i] *= rate ;
+				bv[i] *= rate ;
+				bw[i] *= rate ;
+
 			}
 		}
 	}
@@ -96,9 +98,9 @@ void NavierStokesSolver::SetBCVelocity( double *br, double *bu,double *bv,double
 			ic    = Face[iface].cell1;
 			if( regionMap[rid].type1==3 )
 			{
-				BU[iface] += rate * Face[iface].n[0]/Face[iface].area;
-				BV[iface] += rate * Face[iface].n[1]/Face[iface].area;
-				BW[iface] += rate * Face[iface].n[2]/Face[iface].area;
+				bu[i] += rate * Face[iface].n[0]/Face[iface].area;
+				bv[i] += rate * Face[iface].n[1]/Face[iface].area;
+				bw[i] += rate * Face[iface].n[2]/Face[iface].area;
 			}
 		}
 	}

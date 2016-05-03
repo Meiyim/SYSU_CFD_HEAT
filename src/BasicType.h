@@ -105,7 +105,8 @@ public:
 
     //geometry
     int          Nvrt, Ncel, Nfac, Nbnd;
-    int          NCoupledBnd;
+    int          NCoupledBnd;   //coupled boundary in NCoupledBnd ~ Nbnd
+
     double       **Vert; // coordinate x,y,z
     FaceData     *Face;
     CellData     *Cell;
@@ -122,6 +123,7 @@ public:
     virtual void InitFlowField() {};
     virtual void SaveTransientOldData() {};
     virtual double getResidule() {return 0.0;};
+    virtual int CellFaceInfo();
 
 
 

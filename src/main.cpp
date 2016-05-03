@@ -12,16 +12,15 @@ int main( int argc, char *argv[] )
 	NavierStokesSolver* nsSolver = new NavierStokesSolver;
 	PreProcessor* preProcess = new PreProcessor;
 	nsSolver->printer->printStarter();
-	
 	// read mesh
 	preProcess->parseCommandLine(argc,argv);
 	preProcess->ReadParamFile(nsSolver);
 	preProcess->ReadGridFile();
 	// construct faces, compute geometry related info
 	preProcess->CreateFaces ( );
-	preProcess->CellFaceInfo( );
-
 	preProcess->buildSolver(nsSolver);
+
+	nsSolver->CellFaceInfo( );
 
 	nsSolver->CheckAndAllocate( );
 
