@@ -378,7 +378,7 @@ double HeatConductionSolver::getResidule(){
 *********************************/
 void HeatConductionSolver::coupledBoundCommunicationFluid2Solid(const double* bt, int ncb, int nb){
 	assert((nb-ncb)==(Nbnd-NCoupledBnd));
-	int ifluid = NCoupledBnd;
+	int ifluid = ncb;
 	for(int i=NCoupledBnd;i!=Nbnd;++i){
 		assert(regionMap[Bnd[i].rid].type1==1 &&
 			regionMap[Bnd[i].rid].type2 ==2);//coupled boundary
