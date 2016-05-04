@@ -451,11 +451,6 @@ int PreProcessor::buildSolver(NavierStokesSolver* ns){
         ns->Nbnd = Nbnd;
 
     }else{
-        CycasSolver* sv = new CycasSolver;
-        *sv = *ns;//copy
-        HeatConductionSolver* ht = new HeatConductionSolver(*sv);//ht get all the basic parameter from ns
-        delete sv;
-
         int coupledBoundId = -1;
         for(int i=0;i!=ns->regionMap.size()+1;++i){//insert a coupled bound region, a Wall in fact;
             if(ns->regionMap.find(i)==ns->regionMap.end()){
@@ -467,6 +462,13 @@ int PreProcessor::buildSolver(NavierStokesSolver* ns){
                 break;
             }
         }
+        
+        CycasSolver* sv = new CycasSolver;
+        *sv = *ns;//copy
+        HeatConductionSolver* ht = new HeatConductionSolver(*sv);//ht get all the basic parameter from ns
+        delete sv;
+
+
 
         int nc=0;
         int* new2Old = new int[Ncel];

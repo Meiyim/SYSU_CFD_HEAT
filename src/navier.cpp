@@ -46,13 +46,11 @@ void NavierStokesSolver::NSSolve( )
 			//2. energy couple
 			if( SolveEnergy  ) {
 				UpdateEnergy ( );
-				/*
 				if(Solve3DHeatConduction){
 					HeatConductionSolver* ht = dynamic_cast<HeatConductionSolver*>(physicalModule["3dHeatConduction"]);
-					ht->coupledBoundCommunicationFluid2Solid(BTem,NCoupledBnd);
+					ht->coupledBoundCommunicationFluid2Solid(BTem,NCoupledBnd,Nbnd);
 					ht->solve();
 				}
-			    */	
 			}
 			//3. species transport
 			if( SolveSpecies ) UpdateSpecies( );//to be implemented

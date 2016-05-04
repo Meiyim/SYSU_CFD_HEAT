@@ -6,14 +6,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <fstream>
+#include "BasicType.h"
 extern "C"{
 #include "laspack/laspack.h"
 }
 using namespace std;
 
-#define CYCASMAX(x,y)  ((x)>(y)?(x):(y))
-#define CYCASMIN(x,y)  ((x)<(y)?(x):(y))
-#define CYCASSIGN(x)   ((x)>0?1:(-1))
 // maybe SIGN still has problem, not for 0
 
 // vector manipulation. should be defined as inline function for higher efficiency
@@ -24,6 +22,8 @@ double vec_len   (double[], int );
 void   vec_cross (double[], double[], double[]); // only for C[3]= A[3] x B[3];
 double vec_max   (double[], int );
 
+double weightedAverage(double *arr, int N, CellData* cell);
+
 
 void SolveLinearEqu( Vector* Func(QMatrix*, Vector*, Vector*, int,PrecondProcType, double),
 			QMatrix *qa, Vector *x, Vector *b, int MaxIter, PrecondProcType PreCond, double omega,
@@ -31,6 +31,8 @@ void SolveLinearEqu( Vector* Func(QMatrix*, Vector*, Vector*, int,PrecondProcTyp
 
 void OutPlaceHolder2File(double placeHolder, int N, ofstream& of);
 void OutArray2File(double arr[],int N, ofstream &of);
+
+
 char *trimwhitespace(char *str);
 double ttime (void);
 
@@ -60,7 +62,9 @@ void delete_Array2D(T **arr, int row, int col)
             arr[i][j].~T();
     if (arr != NULL)
         free((void**)arr);
+
 }
+
 template <typename T>
 void init_Array2D(T **arr, int row, int col, T val )
 {

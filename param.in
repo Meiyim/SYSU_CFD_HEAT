@@ -5,7 +5,7 @@ gridfile, untitled.msh
 // transient, 0.1, 500., Dual
 // steady, Maximum iteration, residual
 
-steady, 500, 1.e-6
+steady, 100, 1.e-6
 
 // energy, on/off
 energy, on
@@ -20,12 +20,13 @@ limiter, WENO
 //------ boundary condition ------
 // bound, id from gmsh boundary, type, parameters
 //inlet: u, v, w, p r, t,
-bound, 1, inlet, 0., -1., 0., 0., 1.2, 298.
+bound, 1, inlet, 0., -1., 0., 0., 1.2, 333.
 bound, 2, outlet, 0.
 bound, 3, Hwall, 0.
 bound, 4, sym
+bound, 7, Twall, 298.
 //volumn, bid, fluid, name, u, v, w, ro, t, visLam, te, ed
-volumn, 5, fluid, hotfluid, 0., -1., 0., 1.2, 298., 1.e-4, 1.e-2, 1.
+volumn, 5, fluid, hotfluid, 0., -1., 0., 1.2, 333., 1.e-4, 1.e-2, 1.
 //volumn, 6, fluid, hotfluid, 0., -1., 0., 1.2, 298., 1.e-4, 1.e-2, 1.
 volumn, 6, solid, wall,  298, 4, 0.58
 
@@ -37,6 +38,7 @@ output, 100
 //2 2 "fluidOut"
 //2 3 "wall"
 //2 4 "sym"
+//2 7 "solidFar"
 //3 5 "fluid"
 //3 6 "solid"
 //$EndPhysicalNames

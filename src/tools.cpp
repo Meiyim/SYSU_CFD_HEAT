@@ -80,6 +80,18 @@ void OutArray2File(double arr[],int N,  ofstream &of)
   of<<endl;
 }
 
+
+double weightedAverage(double *arr, int N, CellData* cell){
+  double ret = 0.0; 
+  double volSum = 0.0;
+  for(int i=0;i!=N;++i){
+      ret += cell[i].vol *arr[i];
+      volSum += cell[i].vol;
+  }
+  return ret/volSum;
+}
+
+
 char *trimwhitespace(char *str)
 {
   char *end;

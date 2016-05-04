@@ -3,7 +3,6 @@
 
 #include <stdlib.h>
 #include <fstream>
-#include "tools.h"
 #include <string>
 #include <map>
 #include <vector>
@@ -16,6 +15,9 @@ extern "C"{
 #define SMALL 1.e-16
 #define CYCASHUGE_D std::numeric_limits<double>::max()
 #define CYCASHUGE_I std::numeric_limits<int>::max()
+#define CYCASMAX(x,y)  ((x)>(y)?(x):(y))
+#define CYCASMIN(x,y)  ((x)<(y)?(x):(y))
+#define CYCASSIGN(x)   ((x)>0?1:(-1))
 
 class FaceData{
 public:
@@ -84,6 +86,11 @@ public:
 
     double fixedValue;
     double initvalues[10];//u,v,w,p,ro,t,te,ed
+    BdRegion():
+        type1(-1),
+        type2(-1),
+        fixedValue(CYCASHUGE_I)
+    {}
 
 };
 
@@ -92,7 +99,7 @@ public:
     double Residule;
 public: 
     //parameter 
-    map<int,BdRegion> regionMap; // record the region/bound info, Bnd[i].rid ---> regionMap
+    std::map<int,BdRegion> regionMap; // record the region/bound info, Bnd[i].rid ---> regionMap
     //time scheme
     bool   IfSteady;
     double dt;
@@ -156,9 +163,10 @@ public:
         printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
         printf("%s : %d\n",msg,code);
         printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-        exit(-1);
+        exit(-11);
     }
 };
+
 
 extern ErrorHandler* errorHandler;
 

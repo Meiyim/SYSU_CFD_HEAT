@@ -1,5 +1,6 @@
 #include <iostream>
 #include "BasicType.h"
+#include "tools.h"
 using namespace std;
 
 // Gradient calculation using Gaussian law

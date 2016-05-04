@@ -205,7 +205,10 @@ void PreProcessor::ReadParamFile(NavierStokesSolver* ns)
 		{
 			int bid= atoi( keyw[1] );
 			if(ns->regionMap.find(bid)!=ns->regionMap.end()){
-				cout<<"repeating bid found"<<endl;
+				errorHandler->fatalRuntimeError("repeating bid found");
+			}
+			if(bid ==0){
+				errorHandler->fatalRuntimeError("bid == 0 is ilegal");
 			}
 			if(      strcmp(keyw[2],"fluid")==0 )//fluid
 			{

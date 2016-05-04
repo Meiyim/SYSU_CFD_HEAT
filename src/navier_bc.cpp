@@ -163,13 +163,7 @@ void NavierStokesSolver::SetBCDeltaP(double*bp, double *dp)
 
 void NavierStokesSolver::SetBCTemperature( double *bt, double* diffCoef)
 {
-	/*
-	if(Solve3DHeatConduction){
-		HeatConductionSolver* ht = dynamic_cast<HeatConductionSolver*> (physicalModule["3dHeatConduction"]);
-	}	
-	*/
-	//update btem
-	//ht->coupledBoundCommunicationSolid2Fluid(Bnd,NCoupledBnd);//update coupled boundary flux
+	
 	int    i,rid,iface,ic;
 	for( i=0; i<Nbnd; i++ )
 	{
@@ -182,12 +176,14 @@ void NavierStokesSolver::SetBCTemperature( double *bt, double* diffCoef)
 			if(reg.type2==0){//given T
 				//remain initial value;
 			}else if(reg.type2==1){ //given flux
-     		   	bt[i] = Tn[ic] - Bnd[i].q / (diffCoef[ic] *Face[iface].rlencos );// given flux // by CHENXUYI
+     		   	//bt[i] = Tn[ic] - Bnd[i].q / (diffCoef[ic] *Face[iface].rlencos );// given flux // by CHENXUYI
+     		   	bt[i] = Tn[ic]; //bt will not used implicitly by will be used in gradient in explicit term
      		   	//explicitly changed 2kind_bnd to 1kind_bnd
 				//bt[i] is to cal gradient
 				//flux remain initial
 			}else if(reg.type2==2){//coupled  // deel with 2nd_boundary in fluid field
-     		   	bt[i] = Tn[ic] - Bnd[i].q / (diffCoef[ic] *Face[iface].rlencos );// given flux // by CHENXUYI
+     		   	//bt[i] = Tn[ic] - Bnd[i].q / (diffCoef[ic] *Face[iface].rlencos );// given flux // by CHENXUYI
+     		   	bt[i] = Tn[ic];
 				//update boudary flux
 			}else{
 				assert(false);	
@@ -203,8 +199,7 @@ void NavierStokesSolver::SetBCTemperature( double *bt, double* diffCoef)
 			bt[i]= Tn[ic];
 			break;
 		default:
-			cout<<"no such boundary type"<<i<<" "<<rid<<endl;
-			exit(0);
+			errorHandler->fatalRuntimeError("no such boundary type",rid);
 		}
 	}
 }

@@ -193,10 +193,10 @@ void specialTreatmentForWallTempreture(NavierStokesSolver* solver,
 	double dxc[3];
 	vec_minus( dxc, solver->Face[jface].x, solver->Cell[icell].x, 3 );
 	if(solver->regionMap[rid].type1 == 1 && solver->regionMap[rid].type2 == 1){//given flux;
-		fde = solver->Bnd[bnd].q * solver->Face[jface].area;	
+		fde = 0. - solver->Bnd[bnd].q * solver->Face[jface].area;//outflow flux is positive 
 		fdi = 0.0;
 	}else if(solver->regionMap[rid].type1 == 1 && solver->regionMap[rid].type2 == 2){//coupled the same as above
-		fde = solver->Bnd[bnd].q * solver->Face[jface].area;
+		fde = 0. - solver->Bnd[bnd].q * solver->Face[jface].area; //outflow flux is positive
 		fdi = 0.0;
 	}else if(solver->regionMap[rid].type1==4){//symmetric heat
 		fde = fdi = 0.0;
@@ -341,6 +341,12 @@ void NavierStokesSolver::UpdateEnergy( )
 	SetBCTemperature( BTem,kcond );
 	// source terms, e.g., energy release, condensation/vaporization
 
+	if(Solve3DHeatConduction){
+		HeatConductionSolver* ht = dynamic_cast<HeatConductionSolver*> (physicalModule["3dHeatConduction"]);
+		//update boundary flux
+		ht->coupledBoundCommunicationSolid2Fluid(Bnd,NCoupledBnd,Nbnd);//update coupled boundary flux
+	}
+
 	if( !IfSteady ){
 	if(      TimeScheme==1 ){  // Euler forwards
 		for( i=0; i<Ncel; i++ ){
@@ -377,6 +383,11 @@ void NavierStokesSolver::UpdateEnergy( )
 	delete [] ApE;
 
 	Q_Destr ( &As );
+
+	if(Solve3DHeatConduction)
+		SetBCTemperature( BTem,kcond );//udpate boundary, used in communication with solid
+	cout<<"avergae fluid temp: "<<weightedAverage(Tn,Ncel,Cell)<<endl;
+
 }
 
 //------------------------------------------------------------

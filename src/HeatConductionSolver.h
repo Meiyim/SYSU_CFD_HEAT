@@ -43,8 +43,8 @@ public:
     virtual double getResidule(); 
 
     // special method
-    void coupledBoundCommunicationFluid2Solid(const double* bt, int ncb);
-    void coupledBoundCommunicationSolid2Fluid(BoundaryData* bnd,int ncb);
+    void coupledBoundCommunicationFluid2Solid(const double* bt, int ncb,int nb);
+    void coupledBoundCommunicationSolid2Fluid(BoundaryData* bnd,int ncb,int nb);
 
 
 private:
