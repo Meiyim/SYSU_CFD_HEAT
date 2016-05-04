@@ -345,7 +345,7 @@ void HeatConductionSolver::Output2Tecplot(std::ofstream& of,int nvar)
 	OutPlaceHolder2File(0,Ncel,of);
 
     OutArray2File( Tn,Ncel,of );
-    for(int i=7;i!=nvar+1;++i){
+    for(int i=10;i!=nvar+1;++i){
 		OutPlaceHolder2File(0,Ncel,of);
     }
     

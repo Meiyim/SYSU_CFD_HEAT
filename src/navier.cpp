@@ -270,6 +270,7 @@ void NavierStokesSolver::Output(){
 
 	char tecTitle[256];
 	sprintf(tecTitle,"tec/res%04lu.dat",this->outputCounter++);
+	printf("******************** OUTPUT TECPLOT %s ********************\n",tecTitle);
 
 	of.open(tecTitle);	
 	of<<"variables="<<"\"x\","<<"\"y\","<<"\"z\""
@@ -295,7 +296,7 @@ void NavierStokesSolver::Output(){
 void NavierStokesSolver::Output2Tecplot(std::ofstream& of,int nvar)
 {
 	int i,j;
-	double *tmp;
+	double *tmp=NULL;
 
 
 	of<<endl;
@@ -307,6 +308,7 @@ void NavierStokesSolver::Output2Tecplot(std::ofstream& of,int nvar)
 			of<<Vert[i][j]<<" ";
 			if( i%5==4 ) of<<endl;
 		}
+		of<<endl;
 	}
 	OutArray2File( Pn,Ncel,of );
 	OutArray2File( Un,Ncel,of );
@@ -336,9 +338,6 @@ void NavierStokesSolver::Output2Tecplot(std::ofstream& of,int nvar)
 			of<<Cell[i].vertices[j]+1<<" ";
 		of<<endl;
 	}
-
-
-
 
 	delete []tmp;
 }

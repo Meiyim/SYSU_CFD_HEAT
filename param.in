@@ -24,9 +24,10 @@ bound, 1, inlet, 0., -1., 0., 0., 1.2, 298.
 bound, 2, outlet, 0.
 bound, 3, Hwall, 0.
 bound, 4, sym
+//volumn, bid, fluid, name, u, v, w, ro, t, visLam, te, ed
 volumn, 5, fluid, hotfluid, 0., -1., 0., 1.2, 298., 1.e-4, 1.e-2, 1.
 //volumn, 6, fluid, hotfluid, 0., -1., 0., 1.2, 298., 1.e-4, 1.e-2, 1.
-volumn, 6, solid,  298, 4, 0.58
+volumn, 6, solid, wall,  298, 4, 0.58
 
 output, 100
 
