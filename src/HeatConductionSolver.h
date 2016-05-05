@@ -23,7 +23,6 @@ public:
 	// variables at face center
 	// Boundary faces values
 	double  *BTem;
-	double  *BFluidTem;
     
 	// laspack library work array
 	QMatrix As;                // As for non-sysmmetric, Ap for sysmmetric matrix
@@ -43,8 +42,11 @@ public:
     virtual double getResidule(); 
 
     // special method
-    void coupledBoundCommunicationFluid2Solid(const double* bt, int ncb,int nb);
-    void coupledBoundCommunicationSolid2Fluid(BoundaryData* bnd,int ncb,int nb);
+    void coupledBoundCommunicationFluid2Solid(
+		const CellData* fluidCells, BoundaryData* fluidBnd, const FaceData* fluidFace,
+		const double* fluidDifCoef, const double* bt,double** gradientT, int ncb, int nb);
+
+    void coupledBoundCommunicationSolid2Fluid(double* bt,int ncb,int nb);
 
 
 private:

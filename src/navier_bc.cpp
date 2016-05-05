@@ -181,10 +181,8 @@ void NavierStokesSolver::SetBCTemperature( double *bt, double* diffCoef)
      		   	//explicitly changed 2kind_bnd to 1kind_bnd
 				//bt[i] is to cal gradient
 				//flux remain initial
-			}else if(reg.type2==2){//coupled  // deel with 2nd_boundary in fluid field
-     		   	//bt[i] = Tn[ic] - Bnd[i].q / (diffCoef[ic] *Face[iface].rlencos );// given flux // by CHENXUYI
-     		   	bt[i] = Tn[ic];
-				//update boudary flux
+			}else if(reg.type2==2){//coupled  // same as given T, bt will be set in communication;
+     		   	//bt[i] = Tn[ic];
 			}else{
 				assert(false);	
 			}

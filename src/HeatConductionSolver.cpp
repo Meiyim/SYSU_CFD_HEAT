@@ -27,10 +27,8 @@ void HeatConductionSolver::SetBCTemperature( double *bt )
 			   	bt[i] = Tn[ic] - Bnd[i].q / (diffCoef[ic] *Face[iface].rlencos );// given flux // by CHENXUYI
  				// bt will not be used if 2nd kind of boundary type
  				//bt is used in gradient calculation
-			}else if(regionMap[rid].type2==2){//coupled bound, 3rd bound in solid field
-				bt[i] = Tn[ic];
-				//bt[i] = BFluidTem[i];
-				//bc is set in NS solver
+			}else if(regionMap[rid].type2==2){//coupled bound, 2nd bound in solid field
+				bt[i] = Tn[ic];//bt will no  shown in matrix ,but will be used in gradient;
 			}else{
 				assert(false);
 			}
@@ -155,13 +153,10 @@ void HeatConductionSolver::BuildScalarMatrix(double *Phi,double *BPhi,double *Di
 				}else if(reg.type1 ==1 && reg.type2 == 2){//coupled boundary
 					//Visc = Bnd[bnd].h / (Face[iface].rlencos / Face[iface].area);
 					//ViscAreaLen = Face[iface].area * Bnd[bnd].h;
-  					ViscAreaLen = Visc*Face[iface].rlencos;
-					app += ViscAreaLen;
-					fde  = Visc*( dphidx*sav1 + dphidy*sav2 + dphidz*sav3 );
-					fdi  = ViscAreaLen*( dphidx*dxc[0] + dphidy*dxc[1] + dphidz*dxc[2] - BFluidTem[bnd] );//BFluidTemp, involved
+					fde = 0.- Bnd[bnd].q * Face[iface].area;// coupled boundary  same as given flux;
+					fdi = 0.;	
 				}else if(reg.type1 ==4 || reg.type1 ==1){ //symmetric and given flux
-					assert(bnd<NCoupledBnd)	;
-					fde = Bnd[bnd].q * Face[iface].area;// flux boundary to source
+					fde = 0. - Bnd[bnd].q * Face[iface].area;// flux boundary to source
 					fdi = 0.;	
 				}else{
 					errorHandler->fatalRuntimeError("no such rid");
@@ -262,8 +257,6 @@ int HeatConductionSolver::CheckAndAllocate()
 	dPhidX = new_Array2D<double>(Ncel,3);
 
 	BTem= new double[Nbnd];
-	BFluidTem = new double[Nbnd];
-	vec_init(BFluidTem,Nbnd,0.0);
 
 	// laspack working array
 	V_Constr(&bs,   "rightU",    Ncel, Normal, True);
@@ -298,7 +291,6 @@ void HeatConductionSolver::InitFlowField( )
 				Bnd[i].q = reg.fixedValue;
 			}else if(reg.type2 == 2){ //coupled boundary
 				Bnd[i].q = 0.0;
-				BFluidTem[i] = 0.0; // to be set in communicate
 			}else{ 
 				assert(false);	
 			}
@@ -306,6 +298,8 @@ void HeatConductionSolver::InitFlowField( )
 			Bnd[i].q =0.0;	   //adiabatic
 		}
 	}
+	SetBCTemperature(BTem);
+	Gradient(Tn,BTem,dPhidX);
 	// change grid boundary to actual boundary
 }
 
@@ -376,20 +370,34 @@ double HeatConductionSolver::getResidule(){
 /*********************************
 * 	Coupled boundary communication
 *********************************/
-void HeatConductionSolver::coupledBoundCommunicationFluid2Solid(const double* bt, int ncb, int nb){
+void HeatConductionSolver::coupledBoundCommunicationFluid2Solid(
+	const CellData* fluidCells, BoundaryData* fluidBnd, const FaceData* fluidFace,
+	const double* fluidDifCoef, const double* bt,double** gradientT, int ncb, int nb)
+{
 	assert((nb-ncb)==(Nbnd-NCoupledBnd));
 	int ifluid = ncb;
 	for(int i=NCoupledBnd;i!=Nbnd;++i){
 		assert(regionMap[Bnd[i].rid].type1==1 &&
 			regionMap[Bnd[i].rid].type2 ==2);//coupled boundary
-		Bnd[i].h = 5; //temporary Fixed Value; IMPORRTANT
-		BFluidTem[i] = bt[ifluid++]; // Coupled Boundary: ncb ~ nb
-		cout<<"btem "<<BFluidTem[i]<<endl;
+		int ifluidface = fluidBnd[ifluid].face;
+		int ifluidcell = fluidFace[ifluidface].cell1;
+
+		double dtdn = (
+			gradientT[ifluidcell][0] * fluidFace[ifluidface].n[0] +
+			gradientT[ifluidcell][1] * fluidFace[ifluidface].n[1] +
+			gradientT[ifluidcell][2] * fluidFace[ifluidface].n[2]
+		) / fluidFace[ifluidface].area;
+
+		fluidBnd[ifluid].q = 0. - dtdn * fluidDifCoef[ifluidcell];
+		Bnd[i].q = 0. - fluidBnd[ifluid].q;
+		ifluid++;
+		cout<<"bound flux:"<<Bnd[i].q<<endl;
 	}	
+	return;	
 }
 
 
-void HeatConductionSolver::coupledBoundCommunicationSolid2Fluid(BoundaryData* bnd,int ncb, int nb){
+void HeatConductionSolver::coupledBoundCommunicationSolid2Fluid(double* bt,int ncb, int nb){
 	//SetBCTemperature(BTem);
 	//Gradient ( Tn, BTem,  dPhidX );
 
@@ -403,18 +411,19 @@ void HeatConductionSolver::coupledBoundCommunicationSolid2Fluid(BoundaryData* bn
 
 		int iface = Bnd[i].face;
 		int icell = Face[iface].cell1;
-		/*
 		vec_minus( dxc, Face[iface].x, Cell[icell].x, 3 );
 
-		double dtdn = dPhidX[icell][0] * dxc[0] +
+		double dtdr = dPhidX[icell][0] * dxc[0] +
 			   		  dPhidX[icell][1] * dxc[1] +
 				      dPhidX[icell][2] * dxc[2];
-        */
 		//bnd[ifluid++].q =   diffCoef[icell] * dtdn;// apply 2nd boudnary condition on fluid field;
-		Bnd[i].q = Bnd[i].h	* (BFluidTem[i] - Tn[icell]);			      
-		bnd[ifluid++].q =  Bnd[i].q;
-		cout<<"flux: "<<bnd[ifluid-1].q<<endl;
+		//Bnd[i].q = Bnd[i].h	* (BFluidTem[i] - Tn[icell]);			      
+		//printf("dxc %e %e %e\n",dxc[0],dxc[1].dxc[2]);
+		bt[ifluid++] = Tn[icell] + dtdr;
+		printf("Tn %e, dtdr %e\n",Tn[icell],dtdr);
+		cout<<"boundary temp: "<<bt[ifluid-1]<<endl;
 	}
+	return;
 };
 
 
@@ -426,8 +435,7 @@ HeatConductionSolver::HeatConductionSolver():
 	dPhidX(NULL),
 	Tnp(NULL),
 	Tnp2(NULL),
-	BTem(NULL),
-	BFluidTem(NULL)
+	BTem(NULL)
 {}
 HeatConductionSolver::HeatConductionSolver(CycasSolver& ori):
 	CycasSolver(ori),
@@ -438,8 +446,7 @@ HeatConductionSolver::HeatConductionSolver(CycasSolver& ori):
 	dPhidX(NULL),
 	Tnp(NULL),
 	Tnp2(NULL),
-	BTem(NULL),
-	BFluidTem(NULL)
+	BTem(NULL)
 {}
 HeatConductionSolver::~HeatConductionSolver()
 {
@@ -455,7 +462,6 @@ HeatConductionSolver::~HeatConductionSolver()
 	delete_Array2D( dPhidX,Ncel,3 );
 
 	delete [] BTem;
-	delete [] BFluidTem;
 
 
     V_Destr ( &bs );
